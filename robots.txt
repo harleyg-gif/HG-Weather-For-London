@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://harleyg-gif.github.io/HG-Weather-For-London/sitemap.xml
