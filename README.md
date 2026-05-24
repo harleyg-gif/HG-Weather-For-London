@@ -61,4 +61,4 @@ The forecast data is static for this 2026 period but can be easily updated by mo
 ---
 
 **Created**: May 2026  
-**Disclaimer**: This is an extended forecast for illustrative purposes. Actual weather may vary significantly.
+**Disclaimer**: This is an extended forecast. Actual weather may vary slightly or significantly as it is impossible to gage the exact conditions for a 2 month forecast.
