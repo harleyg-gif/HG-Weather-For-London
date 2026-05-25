@@ -386,7 +386,65 @@ function TenDayForecast({ forecastData, units }) {
                 </div>
               </div>
 
-              // ─── Hourly Forecast ─────────────────────────────────────────────────────────
+            
+
+              {/* Expanded detail */}
+              {isSel && (
+                <div style={{marginTop:12,borderTop:"1px solid rgba(255,255,255,0.07)",paddingTop:10}}>
+                  <div style={{marginBottom:8,fontSize:12,color:"#bbb"}}>{d.note}</div>
+                  <div style={{display:"flex",gap:6,marginBottom:10,flexWrap:"wrap"}}>
+                    <button onClick={function(e){e.stopPropagation();setDetailView("daily");}} style={{padding:"3px 10px",fontSize:11,borderRadius:10,background:detailView==="daily"?"#ff7700":"rgba(255,255,255,0.07)",color:detailView==="daily"?"#fff":"#aaa",border:"none",cursor:"pointer"}}>Daily Summary</button>
+                    <button onClick={function(e){e.stopPropagation();setDetailView("periods");}} style={{padding:"3px 10px",fontSize:11,borderRadius:10,background:detailView==="periods"?"#ff7700":"rgba(255,255,255,0.07)",color:detailView==="periods"?"#fff":"#aaa",border:"none",cursor:"pointer"}}>Morning / Afternoon / Evening</button>
+                  </div>
+
+                  {detailView==="daily" && (
+                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"4px 14px",fontSize:11,color:"#aaa"}}>
+                      {sunny&&<span>In sun: <b style={{color:tc(sun)}}>{fmtTemp(sun,u.temp)}</b></span>}
+                      <span>In shade: <b style={{color:tc(shade)}}>{fmtTemp(shade,u.temp)}</b></span>
+                      <span>Pressure: <b style={{color:pc(d.pressure)}}>{fmtPres(d.pressure,u.pressure)}</b></span>
+                      <span>Humidity: <b style={{color:hc(d.humidity)}}>{d.humidity}%</b></span>
+                      <span>Rain: <b style={{color:rc(d.rain)}}>{d.rain}%</b></span>
+                      <span>Rainfall: <b style={{color:rc(d.rain)}}>{fmtRain(d.rainMm,u.rain)}</b>{d.rainHours>0&&<span style={{color:"#555"}}> / {d.rainHours}h</span>}</span>
+                      <span>Wind: <b style={{color:wc(d.windMph)}}>{fmtSpeed(d.windMph,u.speed)}</b></span>
+                      <span style={{color:"#666",fontSize:10}}>Gusts: <b style={{color:wc(d.gustMph)}}>{fmtSpeed(d.gustMph,u.speed)}</b></span>
+                    </div>
+                  )}
+
+                  {detailView==="periods" && (function(){
+                    const periods=getDayPeriods(d);
+                    return (
+                      <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                        {["morning","afternoon","evening"].map(function(pKey){
+                          const p=periods[pKey];
+                          return (
+                            <div key={pKey} style={{background:"rgba(0,0,0,0.22)",padding:"8px 10px",borderRadius:8,borderLeft:"3px solid "+tc(p.temp)}}>
+                              <div style={{fontSize:11,color:"#ddd",marginBottom:3}}>{p.time} — {p.condition}</div>
+                              <div style={{display:"flex",justifyContent:"space-between",fontSize:12}}>
+                                <b style={{color:tc(p.temp)}}>{fmtTemp(p.temp,u.temp)}</b>
+                                <span style={{color:rc(p.rain)}}>{p.rain}% · {fmtRain(p.rainMm,u.rain)}</span>
+                              </div>
+                              <div style={{fontSize:10,color:wc(p.windMph),marginTop:3}}>Wind: {fmtSpeed(p.windMph,u.speed)}</div>
+                              <div style={{fontSize:10,color:"#888",marginTop:2}}>{p.note}</div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
+
+                  {isC&&<div style={{color:"#ff7700",marginTop:8,fontSize:10}}>Confirmed forecast</div>}
+                  {isN&&<div style={{color:"#4a9fd4",marginTop:8,fontSize:10}}>Near-term forecast</div>}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+  // ─── Hourly Forecast ─────────────────────────────────────────────────────────
 function HourlyForecast({ forecastData, units }) {
 
   const [selectedDay, setSelectedDay] = useState(0);
@@ -534,62 +592,6 @@ function HourlyForecast({ forecastData, units }) {
         })}
       </div>
 
-    </div>
-  );
-}
-
-              {/* Expanded detail */}
-              {isSel && (
-                <div style={{marginTop:12,borderTop:"1px solid rgba(255,255,255,0.07)",paddingTop:10}}>
-                  <div style={{marginBottom:8,fontSize:12,color:"#bbb"}}>{d.note}</div>
-                  <div style={{display:"flex",gap:6,marginBottom:10,flexWrap:"wrap"}}>
-                    <button onClick={function(e){e.stopPropagation();setDetailView("daily");}} style={{padding:"3px 10px",fontSize:11,borderRadius:10,background:detailView==="daily"?"#ff7700":"rgba(255,255,255,0.07)",color:detailView==="daily"?"#fff":"#aaa",border:"none",cursor:"pointer"}}>Daily Summary</button>
-                    <button onClick={function(e){e.stopPropagation();setDetailView("periods");}} style={{padding:"3px 10px",fontSize:11,borderRadius:10,background:detailView==="periods"?"#ff7700":"rgba(255,255,255,0.07)",color:detailView==="periods"?"#fff":"#aaa",border:"none",cursor:"pointer"}}>Morning / Afternoon / Evening</button>
-                  </div>
-
-                  {detailView==="daily" && (
-                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"4px 14px",fontSize:11,color:"#aaa"}}>
-                      {sunny&&<span>In sun: <b style={{color:tc(sun)}}>{fmtTemp(sun,u.temp)}</b></span>}
-                      <span>In shade: <b style={{color:tc(shade)}}>{fmtTemp(shade,u.temp)}</b></span>
-                      <span>Pressure: <b style={{color:pc(d.pressure)}}>{fmtPres(d.pressure,u.pressure)}</b></span>
-                      <span>Humidity: <b style={{color:hc(d.humidity)}}>{d.humidity}%</b></span>
-                      <span>Rain: <b style={{color:rc(d.rain)}}>{d.rain}%</b></span>
-                      <span>Rainfall: <b style={{color:rc(d.rain)}}>{fmtRain(d.rainMm,u.rain)}</b>{d.rainHours>0&&<span style={{color:"#555"}}> / {d.rainHours}h</span>}</span>
-                      <span>Wind: <b style={{color:wc(d.windMph)}}>{fmtSpeed(d.windMph,u.speed)}</b></span>
-                      <span style={{color:"#666",fontSize:10}}>Gusts: <b style={{color:wc(d.gustMph)}}>{fmtSpeed(d.gustMph,u.speed)}</b></span>
-                    </div>
-                  )}
-
-                  {detailView==="periods" && (function(){
-                    const periods=getDayPeriods(d);
-                    return (
-                      <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                        {["morning","afternoon","evening"].map(function(pKey){
-                          const p=periods[pKey];
-                          return (
-                            <div key={pKey} style={{background:"rgba(0,0,0,0.22)",padding:"8px 10px",borderRadius:8,borderLeft:"3px solid "+tc(p.temp)}}>
-                              <div style={{fontSize:11,color:"#ddd",marginBottom:3}}>{p.time} — {p.condition}</div>
-                              <div style={{display:"flex",justifyContent:"space-between",fontSize:12}}>
-                                <b style={{color:tc(p.temp)}}>{fmtTemp(p.temp,u.temp)}</b>
-                                <span style={{color:rc(p.rain)}}>{p.rain}% · {fmtRain(p.rainMm,u.rain)}</span>
-                              </div>
-                              <div style={{fontSize:10,color:wc(p.windMph),marginTop:3}}>Wind: {fmtSpeed(p.windMph,u.speed)}</div>
-                              <div style={{fontSize:10,color:"#888",marginTop:2}}>{p.note}</div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    );
-                  })()}
-
-                  {isC&&<div style={{color:"#ff7700",marginTop:8,fontSize:10}}>Confirmed forecast</div>}
-                  {isN&&<div style={{color:"#4a9fd4",marginTop:8,fontSize:10}}>Near-term forecast</div>}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
     </div>
   );
 }
