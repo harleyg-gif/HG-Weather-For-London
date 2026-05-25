@@ -194,19 +194,73 @@ function SettingsPanel({ units, setUnits, onClose }) {
 
 // ─── Main App ─────────────────────────────────────────────────────────────────
 function App() {
+ function App() {
   const [forecastData, setForecastData] = useState([]);
-const [search, setSearch] = useState("");
-const [location, setLocation] = useState("London");
- 
-  const u = units;
-  const maxT = Math.max(...forecastData.map(d=>d.temp));
-  const minT = Math.min(...forecastData.map(d=>d.temp));
-  const n    = forecastData.length;
-  const CHART_H = 143;
+  const [search, setSearch] = useState("");
+  const [location, setLocation] = useState("London");
+  const [graph, setGraph] = useState("temp");
+  const [sel, setSel] = useState(null);
+  const [showSett, setShowSett] = useState(false);
+
+  const [units, setUnits] = useState({
+    temp: "C",
+    speed: "mph",
+    rain: "mm",
+    pressure: "mbar"
+  });
 
   const tabs = [
-    async function searchLocation() {
+          async function searchLocation() {
+    if (!search) return;
 
+    const geoRes = await fetch(
+      `https://geocoding-api.open-meteo.com/v1/search?name=${search}&count=1&language=en&format=json`
+    );
+
+    const geoData = await geoRes.json();
+
+    if (!geoData.results?.length) {
+      alert("Location not found");
+      return;
+    }
+
+    const place = geoData.results[0];
+    setLocation(place.name);
+
+    const weatherRes = await fetch(
+      `https://api.open-meteo.com/v1/forecast?latitude=${place.latitude}&longitude=${place.longitude}&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,windspeed_10m_max,relative_humidity_2m_mean,pressure_msl_mean&timezone=auto&forecast_days=14`
+    );
+
+    const weatherData = await weatherRes.json();
+
+    const data = weatherData.daily.time.map((t, i) => {
+      let temp = Math.round(weatherData.daily.temperature_2m_max[i]);
+
+      return {
+        date: t,
+        temp,
+        low: Math.round(weatherData.daily.temperature_2m_min[i]),
+        rain: weatherData.daily.precipitation_probability_max[i],
+        rainMm: weatherData.daily.precipitation_sum[i],
+        humidity: weatherData.daily.relative_humidity_2m_mean?.[i] || 55,
+        pressure: weatherData.daily.pressure_msl_mean?.[i] || 1015,
+        windMph: Math.round(weatherData.daily.windspeed_10m_max[i] * 0.621371),
+        gustMph: Math.round(weatherData.daily.windspeed_10m_max[i] * 0.8),
+        type: i < 5 ? "confirmed" : i < 10 ? "near" : "estimated",
+        condition: temp > 30 ? "☀️" : temp > 22 ? "🌤" : "☁️",
+        note: "Generated forecast"
+      };
+    });
+
+    setForecastData(data);
+  }
+    { id: "temp", label: "🌡 Temp" },
+    { id: "rain", label: "🌧 Rain %" },
+    { id: "rainmm", label: "💦 Rainfall" },
+    { id: "humidity", label: "💧 Humidity" },
+    { id: "wind", label: "💨 Wind" },
+    { id: "pressure", label: "📊 Pressure" },
+  ];
   if (!search) return;
 
   const geoRes = await fetch(
@@ -496,6 +550,10 @@ const isSel=sel===i, isC=d.type==="confirmed", isN=d.type==="near";
 }, []);
       React.useEffect(() => {
   if (search === "London") searchLocation();
+                              useEffect(() => {
+    setSearch("London");
+    searchLocation();
+  }, []);
 }, [search]);
               return(
                 <div style={{position:"absolute",bottom:"calc(100% - 143px)",
@@ -659,6 +717,3 @@ ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
 </script>
 </body>
 </html>
-
-const [location, setLocation] = useState("London");
-const [search, setSearch] = useState("");
