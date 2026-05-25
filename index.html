@@ -26,78 +26,119 @@
 <script type="text/babel">
 const { useState } = React;
 
+// ─── Forecast Data ────────────────────────────────────────────────────────────
+// pressure: mbar | rainMm: estimated mm | rainHours: estimated hours of rain
 const forecastData = [
-  { date:"Mon 25 May", temp:35, low:21, type:"confirmed", condition:"☀️", note:"Bank Holiday scorcher",                                wind:"light",     windMph:8,  gustMph:13, rain:3,  humidity:38 },
-  { date:"Tue 26 May", temp:36, low:18, type:"confirmed", condition:"☀️", note:"Hottest of spell, challenging June's peak",             wind:"very light",windMph:4,  gustMph:8,  rain:5,  humidity:42 },
-  { date:"Wed 27 May", temp:25, low:14, type:"confirmed", condition:"☀️", note:"Atlantic front clears heat",                           wind:"fresh",     windMph:22, gustMph:36, rain:15, humidity:68 },
-  { date:"Thu 28 May", temp:30, low:15, type:"confirmed", condition:"⛅", note:"Recovering warmth",                                    wind:"light",     windMph:11, gustMph:19, rain:2,  humidity:52 },
-  { date:"Fri 29 May", temp:26, low:18, type:"confirmed", condition:"🌦️", note:"Heatwave dies, slightly unsettled",                    wind:"very light",windMph:5,  gustMph:9,  rain:100,humidity:40 },
-  { date:"Sat 30 May", temp:24, low:13, type:"near",      condition:"⛅️", note:"Pleasant, settled",                                   wind:"light",     windMph:10, gustMph:17, rain:30, humidity:55 },
-  { date:"Sun 31 May", temp:19, low:8,  type:"near",      condition:"⛈️", note:"Low Pressure System Arrives, Bringing Instable Weather",wind:"moderate",  windMph:17, gustMph:28, rain:70, humidity:65 },
-  { date:"Mon 1 Jun",  temp:16, low:6,  type:"near",      condition:"☁️", note:"Cooler start to June",                                wind:"fresh",     windMph:24, gustMph:38, rain:45, humidity:82 },
-  { date:"Tue 2 Jun",  temp:13, low:8,  type:"near",      condition:"🌧", note:"Notably cool, showery",                               wind:"fresh",     windMph:25, gustMph:40, rain:5,  humidity:85 },
-  { date:"Wed 3 Jun",  temp:14, low:9,  type:"near",      condition:"☁️", note:"Low pressure lingering",                              wind:"moderate",  windMph:19, gustMph:31, rain:70, humidity:80 },
-  { date:"Thu 4 Jun",  temp:18, low:7,  type:"near",      condition:"🌦", note:"Gradual improvement",                                 wind:"light",     windMph:12, gustMph:21, rain:35, humidity:62 },
-  { date:"Fri 5 Jun",  temp:22, low:12, type:"near",      condition:"⛅", note:"High pressure building",                              wind:"light",     windMph:9,  gustMph:15, rain:15, humidity:42 },
-  { date:"Sat 6 Jun",  temp:25, low:13, type:"near",      condition:"🌤", note:"Warm spell returning",                                wind:"light",     windMph:9,  gustMph:14, rain:8,  humidity:35 },
-  { date:"Sun 7 Jun",  temp:27, low:15, type:"near",      condition:"☀️", note:"Jet stream north of UK",                              wind:"light",     windMph:7,  gustMph:12, rain:5,  humidity:30 },
-  { date:"Mon 8 Jun",  temp:29, low:16, type:"estimated", condition:"☀️", note:"Dry soil amplifying heat",                            wind:"light",     windMph:7,  gustMph:12, rain:5,  humidity:32 },
-  { date:"Tue 9 Jun",  temp:30, low:17, type:"estimated", condition:"☀️", note:"Southerly flow, hot",                                 wind:"very light",windMph:5,  gustMph:9,  rain:8,  humidity:38 },
-  { date:"Wed 10 Jun", temp:27, low:15, type:"estimated", condition:"⛅", note:"Brief frontal passage",                               wind:"moderate",  windMph:16, gustMph:27, rain:25, humidity:55 },
-  { date:"Thu 11 Jun", temp:23, low:13, type:"estimated", condition:"🌦", note:"Cooler interlude",                                    wind:"fresh",     windMph:20, gustMph:33, rain:55, humidity:68 },
-  { date:"Fri 12 Jun", temp:20, low:11, type:"estimated", condition:"☁️", note:"Showery trough",                                      wind:"fresh",     windMph:23, gustMph:37, rain:90, humidity:75 },
-  { date:"Sat 13 Jun", temp:19, low:11, type:"estimated", condition:"🌧️🌧️", note:"Unsettled",                                         wind:"moderate",  windMph:17, gustMph:29, rain:50, humidity:70 },
-  { date:"Sun 14 Jun", temp:21, low:12, type:"estimated", condition:"⛅", note:"Improving",                                           wind:"light",     windMph:11, gustMph:18, rain:20, humidity:58 },
-  { date:"Mon 15 Jun", temp:24, low:13, type:"estimated", condition:"🌤", note:"Warming trend",                                       wind:"light",     windMph:9,  gustMph:14, rain:10, humidity:50 },
-  { date:"Tue 16 Jun", temp:27, low:15, type:"estimated", condition:"☀️", note:"High pressure builds",                                wind:"light",     windMph:7,  gustMph:12, rain:5,  humidity:45 },
-  { date:"Wed 17 Jun", temp:30, low:17, type:"estimated", condition:"☀️", note:"Hot & dry",                                           wind:"very light",windMph:4,  gustMph:8,  rain:5,  humidity:42 },
-  { date:"Thu 18 Jun", temp:32, low:18, type:"estimated", condition:"🌦️", note:"Heatwave developing",                                 wind:"very light",windMph:4,  gustMph:7,  rain:5,  humidity:45 },
-  { date:"Fri 19 Jun", temp:34, low:20, type:"estimated", condition:"⛈️", note:"Major heat event",                                    wind:"very light",windMph:4,  gustMph:7,  rain:5,  humidity:48 },
-  { date:"Sat 20 Jun", temp:36, low:21, type:"estimated", condition:"🌡️", note:"Record-challenging peak! Possible thunderstorms late", wind:"very light",windMph:3,  gustMph:12, rain:15, humidity:52 },
-  { date:"Sun 21 Jun", temp:35, low:21, type:"estimated", condition:"🌡️", note:"Solstice heatwave — storm risk remains",              wind:"very light",windMph:4,  gustMph:14, rain:20, humidity:55 },
-  { date:"Mon 22 Jun", temp:33, low:20, type:"estimated", condition:"☀️", note:"Still very hot",                                      wind:"light",     windMph:6,  gustMph:11, rain:8,  humidity:50 },
-  { date:"Tue 23 Jun", temp:29, low:17, type:"estimated", condition:"⛅", note:"Gradual breakdown",                                   wind:"light",     windMph:11, gustMph:19, rain:20, humidity:58 },
-  { date:"Wed 24 Jun", temp:24, low:14, type:"estimated", condition:"⛈️", note:"Front clears",                                        wind:"fresh",     windMph:20, gustMph:32, rain:58, humidity:72 },
-  { date:"Thu 25 Jun", temp:19, low:11, type:"estimated", condition:"⛈️", note:"Cooler, wet spell",                                   wind:"fresh",     windMph:22, gustMph:36, rain:75, humidity:80 },
-  { date:"Fri 26 Jun", temp:16, low:10, type:"estimated", condition:"☁️", note:"Notably cool & wet",                                  wind:"fresh",     windMph:24, gustMph:38, rain:80, humidity:85 },
-  { date:"Sat 27 Jun", temp:17, low:10, type:"estimated", condition:"🌦", note:"Still unsettled",                                     wind:"moderate",  windMph:17, gustMph:28, rain:55, humidity:72 },
-  { date:"Sun 28 Jun", temp:15, low:9,  type:"estimated", condition:"🌥️", note:"Coldest of the cool spell",                           wind:"fresh",     windMph:25, gustMph:41, rain:82, humidity:88 },
-  { date:"Mon 29 Jun", temp:18, low:10, type:"estimated", condition:"🌦", note:"Slowly improving",                                    wind:"light",     windMph:12, gustMph:20, rain:35, humidity:62 },
-  { date:"Tue 30 Jun", temp:25, low:14, type:"estimated", condition:"⛅", note:"Warming up quickly",                                  wind:"light",     windMph:9,  gustMph:15, rain:12, humidity:50 },
-  { date:"Wed 1 Jul",  temp:28, low:16, type:"estimated", condition:"🌤", note:"Heat building again",                                 wind:"light",     windMph:8,  gustMph:13, rain:8,  humidity:48 },
-  { date:"Thu 2 Jul",  temp:31, low:18, type:"estimated", condition:"☀️", note:"Hot southerly plume",                                 wind:"light",     windMph:7,  gustMph:12, rain:5,  humidity:45 },
-  { date:"Fri 3 Jul",  temp:33, low:19, type:"estimated", condition:"☀️", note:"Heatwave developing",                                 wind:"very light",windMph:4,  gustMph:8,  rain:5,  humidity:33 },
-  { date:"Sat 4 Jul",  temp:37, low:22, type:"estimated", condition:"🌡️", note:"Exceptional heat event",                              wind:"very light",windMph:3,  gustMph:10, rain:8,  humidity:15 },
-  { date:"Sun 5 Jul",  temp:38, low:23, type:"estimated", condition:"🌡️", note:"Possible peak of summer!",                            wind:"very light",windMph:3,  gustMph:15, rain:18, humidity:5  },
-  { date:"Mon 6 Jul",  temp:36, low:22, type:"estimated", condition:"🌡️", note:"Still dangerously hot — thunderstorm risk",            wind:"very light",windMph:4,  gustMph:18, rain:22, humidity:15 },
-  { date:"Tue 7 Jul",  temp:32, low:20, type:"estimated", condition:"⛈️", note:"Gradual breakdown",                                   wind:"light",     windMph:7,  gustMph:13, rain:70, humidity:45 },
-  { date:"Wed 8 Jul",  temp:23, low:15, type:"estimated", condition:"⛈️", note:"Atlantic front arrives",                              wind:"fresh",     windMph:21, gustMph:34, rain:80, humidity:72 },
-  { date:"Thu 9 Jul",  temp:19, low:12, type:"estimated", condition:"⛈️", note:"Notably cooler",                                      wind:"fresh",     windMph:24, gustMph:38, rain:75, humidity:80 },
-  { date:"Fri 10 Jul", temp:15, low:10, type:"estimated", condition:"🌧", note:"Cool & wet interlude",                                wind:"fresh",     windMph:25, gustMph:40, rain:80, humidity:85 },
-  { date:"Sat 11 Jul", temp:17, low:11, type:"estimated", condition:"☀️", note:"Still unsettled",                                     wind:"moderate",  windMph:16, gustMph:26, rain:52, humidity:70 },
-  { date:"Sun 12 Jul", temp:22, low:13, type:"estimated", condition:"⛅", note:"Improving",                                           wind:"light",     windMph:11, gustMph:18, rain:18, humidity:58 },
-  { date:"Mon 13 Jul", temp:21, low:13, type:"estimated", condition:"⛅", note:"Warm spells, some cloud",                             wind:"light",     windMph:9,  gustMph:15, rain:15, humidity:55 },
-  { date:"Tue 14 Jul", temp:24, low:14, type:"estimated", condition:"🌤", note:"Pleasantly warm",                                     wind:"light",     windMph:9,  gustMph:14, rain:8,  humidity:50 },
-  { date:"Wed 15 Jul", temp:20, low:12, type:"estimated", condition:"🌦", note:"Brief frontal passage",                               wind:"moderate",  windMph:16, gustMph:26, rain:45, humidity:68 },
-  { date:"Thu 16 Jul", temp:18, low:11, type:"estimated", condition:"🌧", note:"Cool & showery",                                      wind:"fresh",     windMph:22, gustMph:35, rain:70, humidity:75 },
-  { date:"Fri 17 Jul", temp:25, low:14, type:"estimated", condition:"🌤", note:"Warm recovery",                                       wind:"light",     windMph:9,  gustMph:15, rain:10, humidity:50 },
-  { date:"Sat 18 Jul", temp:27, low:15, type:"estimated", condition:"🌤", note:"Continued warm recovery, high pressure building",      wind:"light",     windMph:10, gustMph:17, rain:8,  humidity:48 },
-  { date:"Sun 19 Jul", temp:29, low:16, type:"estimated", condition:"☀️", note:"Hot spell resuming, southerly flow",                  wind:"light",     windMph:8,  gustMph:13, rain:5,  humidity:45 },
-  { date:"Mon 20 Jul", temp:31, low:18, type:"estimated", condition:"☀️", note:"Very hot, dry soil amplifying heat again",             wind:"very light",windMph:5,  gustMph:9,  rain:5,  humidity:28 },
-  { date:"Tue 21 Jul", temp:33, low:19, type:"estimated", condition:"🌤️", note:"Intense heat, blocking high dominant",                wind:"very light",windMph:4,  gustMph:8,  rain:5,  humidity:11 },
-  { date:"Wed 22 Jul", temp:32, low:19, type:"estimated", condition:"☀️", note:"Still very hot, some haze",                           wind:"very light",windMph:5,  gustMph:9,  rain:8,  humidity:17 },
-  { date:"Thu 23 Jul", temp:28, low:16, type:"estimated", condition:"⛅", note:"Gradual breakdown, front approaching",                wind:"light",     windMph:12, gustMph:20, rain:20, humidity:30 },
-  { date:"Fri 24 Jul", temp:22, low:14, type:"estimated", condition:"🌦", note:"Atlantic front arrives, cooler & fresher",            wind:"moderate",  windMph:18, gustMph:30, rain:50, humidity:68 },
-  { date:"Sat 25 Jul", temp:19, low:8,  type:"estimated", condition:"☁️", note:"Heatwave ends bringing in cooler weather",            wind:"strong",    windMph:30, gustMph:52, rain:20, humidity:62 },
+  { date:"Mon 25 May", temp:35, low:21, type:"confirmed", condition:"☀️",     note:"Bank Holiday scorcher",                                  wind:"light",     windMph:8,  gustMph:13, rain:3,  humidity:38, pressure:1033, rainMm:0,   rainHours:0 },
+  { date:"Tue 26 May", temp:36, low:18, type:"confirmed", condition:"☀️",     note:"Hottest of spell, challenging June's peak",               wind:"very light",windMph:4,  gustMph:8,  rain:5,  humidity:42, pressure:1033, rainMm:0,   rainHours:0 },
+  { date:"Wed 27 May", temp:25, low:14, type:"confirmed", condition:"☀️",     note:"Atlantic front clears heat",                             wind:"fresh",     windMph:22, gustMph:36, rain:15, humidity:68, pressure:1021, rainMm:2,   rainHours:2 },
+  { date:"Thu 28 May", temp:30, low:15, type:"confirmed", condition:"⛅",     note:"Recovering warmth",                                      wind:"light",     windMph:11, gustMph:19, rain:2,  humidity:52, pressure:1026, rainMm:0,   rainHours:0 },
+  { date:"Fri 29 May", temp:26, low:18, type:"confirmed", condition:"🌦️",    note:"Heatwave dies, slightly unsettled",                       wind:"very light",windMph:5,  gustMph:9,  rain:100,humidity:40, pressure:1018, rainMm:8,   rainHours:5 },
+  { date:"Sat 30 May", temp:24, low:13, type:"near",      condition:"⛅️",    note:"Pleasant, settled",                                      wind:"light",     windMph:10, gustMph:17, rain:30, humidity:55, pressure:1022, rainMm:3,   rainHours:2 },
+  { date:"Sun 31 May", temp:19, low:8,  type:"near",      condition:"⛈️",    note:"Low Pressure System Arrives, Bringing Instable Weather",  wind:"moderate",  windMph:17, gustMph:28, rain:70, humidity:65, pressure:1008, rainMm:14,  rainHours:7 },
+  { date:"Mon 1 Jun",  temp:16, low:6,  type:"near",      condition:"☁️",    note:"Cooler start to June",                                   wind:"fresh",     windMph:24, gustMph:38, rain:45, humidity:82, pressure:1004, rainMm:9,   rainHours:5 },
+  { date:"Tue 2 Jun",  temp:13, low:8,  type:"near",      condition:"🌧",    note:"Notably cool, showery",                                  wind:"fresh",     windMph:25, gustMph:40, rain:5,  humidity:85, pressure:1002, rainMm:18,  rainHours:8 },
+  { date:"Wed 3 Jun",  temp:14, low:9,  type:"near",      condition:"☁️",    note:"Low pressure lingering",                                 wind:"moderate",  windMph:19, gustMph:31, rain:70, humidity:80, pressure:1005, rainMm:11,  rainHours:6 },
+  { date:"Thu 4 Jun",  temp:18, low:7,  type:"near",      condition:"🌦",    note:"Gradual improvement",                                    wind:"light",     windMph:12, gustMph:21, rain:35, humidity:62, pressure:1012, rainMm:5,   rainHours:3 },
+  { date:"Fri 5 Jun",  temp:22, low:12, type:"near",      condition:"⛅",    note:"High pressure building",                                 wind:"light",     windMph:9,  gustMph:15, rain:15, humidity:42, pressure:1018, rainMm:1,   rainHours:1 },
+  { date:"Sat 6 Jun",  temp:25, low:13, type:"near",      condition:"🌤",    note:"Warm spell returning",                                   wind:"light",     windMph:9,  gustMph:14, rain:8,  humidity:35, pressure:1022, rainMm:0,   rainHours:0 },
+  { date:"Sun 7 Jun",  temp:27, low:15, type:"near",      condition:"☀️",    note:"Jet stream north of UK",                                 wind:"light",     windMph:7,  gustMph:12, rain:5,  humidity:30, pressure:1025, rainMm:0,   rainHours:0 },
+  { date:"Mon 8 Jun",  temp:29, low:16, type:"estimated", condition:"☀️",    note:"Dry soil amplifying heat",                               wind:"light",     windMph:7,  gustMph:12, rain:5,  humidity:32, pressure:1027, rainMm:0,   rainHours:0 },
+  { date:"Tue 9 Jun",  temp:30, low:17, type:"estimated", condition:"☀️",    note:"Southerly flow, hot",                                    wind:"very light",windMph:5,  gustMph:9,  rain:8,  humidity:38, pressure:1028, rainMm:0,   rainHours:0 },
+  { date:"Wed 10 Jun", temp:27, low:15, type:"estimated", condition:"⛅",    note:"Brief frontal passage",                                  wind:"moderate",  windMph:16, gustMph:27, rain:25, humidity:55, pressure:1019, rainMm:4,   rainHours:2 },
+  { date:"Thu 11 Jun", temp:23, low:13, type:"estimated", condition:"🌦",    note:"Cooler interlude",                                       wind:"fresh",     windMph:20, gustMph:33, rain:55, humidity:68, pressure:1010, rainMm:10,  rainHours:5 },
+  { date:"Fri 12 Jun", temp:20, low:11, type:"estimated", condition:"☁️",    note:"Showery trough",                                         wind:"fresh",     windMph:23, gustMph:37, rain:90, humidity:75, pressure:1006, rainMm:16,  rainHours:7 },
+  { date:"Sat 13 Jun", temp:19, low:11, type:"estimated", condition:"🌧️🌧️", note:"Unsettled",                                               wind:"moderate",  windMph:17, gustMph:29, rain:50, humidity:70, pressure:1008, rainMm:12,  rainHours:6 },
+  { date:"Sun 14 Jun", temp:21, low:12, type:"estimated", condition:"⛅",    note:"Improving",                                              wind:"light",     windMph:11, gustMph:18, rain:20, humidity:58, pressure:1015, rainMm:2,   rainHours:1 },
+  { date:"Mon 15 Jun", temp:24, low:13, type:"estimated", condition:"🌤",    note:"Warming trend",                                          wind:"light",     windMph:9,  gustMph:14, rain:10, humidity:50, pressure:1020, rainMm:0,   rainHours:0 },
+  { date:"Tue 16 Jun", temp:27, low:15, type:"estimated", condition:"☀️",    note:"High pressure builds",                                   wind:"light",     windMph:7,  gustMph:12, rain:5,  humidity:45, pressure:1024, rainMm:0,   rainHours:0 },
+  { date:"Wed 17 Jun", temp:30, low:17, type:"estimated", condition:"☀️",    note:"Hot and dry",                                            wind:"very light",windMph:4,  gustMph:8,  rain:5,  humidity:42, pressure:1028, rainMm:0,   rainHours:0 },
+  { date:"Thu 18 Jun", temp:32, low:18, type:"estimated", condition:"🌦️",   note:"Heatwave developing",                                    wind:"very light",windMph:4,  gustMph:7,  rain:5,  humidity:45, pressure:1030, rainMm:0,   rainHours:0 },
+  { date:"Fri 19 Jun", temp:34, low:20, type:"estimated", condition:"⛈️",   note:"Major heat event",                                       wind:"very light",windMph:4,  gustMph:7,  rain:5,  humidity:48, pressure:1031, rainMm:0,   rainHours:0 },
+  { date:"Sat 20 Jun", temp:36, low:21, type:"estimated", condition:"🌡️",   note:"Record-challenging peak! Possible thunderstorms late",    wind:"very light",windMph:3,  gustMph:12, rain:15, humidity:52, pressure:1032, rainMm:1,   rainHours:1 },
+  { date:"Sun 21 Jun", temp:35, low:21, type:"estimated", condition:"🌡️",   note:"Solstice heatwave — storm risk remains",                  wind:"very light",windMph:4,  gustMph:14, rain:20, humidity:55, pressure:1030, rainMm:2,   rainHours:1 },
+  { date:"Mon 22 Jun", temp:33, low:20, type:"estimated", condition:"☀️",   note:"Still very hot",                                         wind:"light",     windMph:6,  gustMph:11, rain:8,  humidity:50, pressure:1028, rainMm:0,   rainHours:0 },
+  { date:"Tue 23 Jun", temp:29, low:17, type:"estimated", condition:"⛅",   note:"Gradual breakdown",                                      wind:"light",     windMph:11, gustMph:19, rain:20, humidity:58, pressure:1022, rainMm:2,   rainHours:1 },
+  { date:"Wed 24 Jun", temp:24, low:14, type:"estimated", condition:"⛈️",   note:"Front clears",                                           wind:"fresh",     windMph:20, gustMph:32, rain:58, humidity:72, pressure:1009, rainMm:13,  rainHours:6 },
+  { date:"Thu 25 Jun", temp:19, low:11, type:"estimated", condition:"⛈️",   note:"Cooler, wet spell",                                      wind:"fresh",     windMph:22, gustMph:36, rain:75, humidity:80, pressure:1004, rainMm:18,  rainHours:8 },
+  { date:"Fri 26 Jun", temp:16, low:10, type:"estimated", condition:"☁️",   note:"Notably cool and wet",                                   wind:"fresh",     windMph:24, gustMph:38, rain:80, humidity:85, pressure:1002, rainMm:20,  rainHours:9 },
+  { date:"Sat 27 Jun", temp:17, low:10, type:"estimated", condition:"🌦",   note:"Still unsettled",                                        wind:"moderate",  windMph:17, gustMph:28, rain:55, humidity:72, pressure:1007, rainMm:10,  rainHours:5 },
+  { date:"Sun 28 Jun", temp:15, low:9,  type:"estimated", condition:"🌥️",  note:"Coldest of the cool spell",                               wind:"fresh",     windMph:25, gustMph:41, rain:82, humidity:88, pressure:1001, rainMm:22,  rainHours:10},
+  { date:"Mon 29 Jun", temp:18, low:10, type:"estimated", condition:"🌦",   note:"Slowly improving",                                       wind:"light",     windMph:12, gustMph:20, rain:35, humidity:62, pressure:1010, rainMm:6,   rainHours:3 },
+  { date:"Tue 30 Jun", temp:25, low:14, type:"estimated", condition:"⛅",   note:"Warming up quickly",                                     wind:"light",     windMph:9,  gustMph:15, rain:12, humidity:50, pressure:1017, rainMm:1,   rainHours:1 },
+  { date:"Wed 1 Jul",  temp:28, low:16, type:"estimated", condition:"🌤",   note:"Heat building again",                                    wind:"light",     windMph:8,  gustMph:13, rain:8,  humidity:48, pressure:1022, rainMm:0,   rainHours:0 },
+  { date:"Thu 2 Jul",  temp:31, low:18, type:"estimated", condition:"☀️",   note:"Hot southerly plume",                                    wind:"light",     windMph:7,  gustMph:12, rain:5,  humidity:45, pressure:1026, rainMm:0,   rainHours:0 },
+  { date:"Fri 3 Jul",  temp:33, low:19, type:"estimated", condition:"☀️",   note:"Heatwave developing",                                    wind:"very light",windMph:4,  gustMph:8,  rain:5,  humidity:33, pressure:1030, rainMm:0,   rainHours:0 },
+  { date:"Sat 4 Jul",  temp:37, low:22, type:"estimated", condition:"🌡️",  note:"Exceptional heat event",                                  wind:"very light",windMph:3,  gustMph:10, rain:8,  humidity:15, pressure:1034, rainMm:0,   rainHours:0 },
+  { date:"Sun 5 Jul",  temp:38, low:23, type:"estimated", condition:"🌡️",  note:"Possible peak of summer!",                                wind:"very light",windMph:3,  gustMph:15, rain:18, humidity:5,  pressure:1035, rainMm:0,   rainHours:0 },
+  { date:"Mon 6 Jul",  temp:36, low:22, type:"estimated", condition:"🌡️",  note:"Still dangerously hot — thunderstorm risk",               wind:"very light",windMph:4,  gustMph:18, rain:22, humidity:15, pressure:1033, rainMm:1,   rainHours:1 },
+  { date:"Tue 7 Jul",  temp:32, low:20, type:"estimated", condition:"⛈️",  note:"Gradual breakdown",                                       wind:"light",     windMph:7,  gustMph:13, rain:70, humidity:45, pressure:1018, rainMm:12,  rainHours:5 },
+  { date:"Wed 8 Jul",  temp:23, low:15, type:"estimated", condition:"⛈️",  note:"Atlantic front arrives",                                  wind:"fresh",     windMph:21, gustMph:34, rain:80, humidity:72, pressure:1007, rainMm:18,  rainHours:8 },
+  { date:"Thu 9 Jul",  temp:19, low:12, type:"estimated", condition:"⛈️",  note:"Notably cooler",                                          wind:"fresh",     windMph:24, gustMph:38, rain:75, humidity:80, pressure:1003, rainMm:16,  rainHours:7 },
+  { date:"Fri 10 Jul", temp:15, low:10, type:"estimated", condition:"🌧",  note:"Cool and wet interlude",                                  wind:"fresh",     windMph:25, gustMph:40, rain:80, humidity:85, pressure:1001, rainMm:20,  rainHours:9 },
+  { date:"Sat 11 Jul", temp:17, low:11, type:"estimated", condition:"☀️",  note:"Still unsettled",                                         wind:"moderate",  windMph:16, gustMph:26, rain:52, humidity:70, pressure:1008, rainMm:10,  rainHours:5 },
+  { date:"Sun 12 Jul", temp:22, low:13, type:"estimated", condition:"⛅",  note:"Improving",                                               wind:"light",     windMph:11, gustMph:18, rain:18, humidity:58, pressure:1015, rainMm:2,   rainHours:1 },
+  { date:"Mon 13 Jul", temp:21, low:13, type:"estimated", condition:"⛅",  note:"Warm spells, some cloud",                                 wind:"light",     windMph:9,  gustMph:15, rain:15, humidity:55, pressure:1017, rainMm:1,   rainHours:1 },
+  { date:"Tue 14 Jul", temp:24, low:14, type:"estimated", condition:"🌤",  note:"Pleasantly warm",                                         wind:"light",     windMph:9,  gustMph:14, rain:8,  humidity:50, pressure:1020, rainMm:0,   rainHours:0 },
+  { date:"Wed 15 Jul", temp:20, low:12, type:"estimated", condition:"🌦",  note:"Brief frontal passage",                                   wind:"moderate",  windMph:16, gustMph:26, rain:45, humidity:68, pressure:1012, rainMm:8,   rainHours:4 },
+  { date:"Thu 16 Jul", temp:18, low:11, type:"estimated", condition:"🌧",  note:"Cool and showery",                                        wind:"fresh",     windMph:22, gustMph:35, rain:70, humidity:75, pressure:1006, rainMm:15,  rainHours:7 },
+  { date:"Fri 17 Jul", temp:25, low:14, type:"estimated", condition:"🌤",  note:"Warm recovery",                                           wind:"light",     windMph:9,  gustMph:15, rain:10, humidity:50, pressure:1018, rainMm:1,   rainHours:1 },
+  { date:"Sat 18 Jul", temp:27, low:15, type:"estimated", condition:"🌤",  note:"Continued warm recovery, high pressure building",          wind:"light",     windMph:10, gustMph:17, rain:8,  humidity:48, pressure:1022, rainMm:0,   rainHours:0 },
+  { date:"Sun 19 Jul", temp:29, low:16, type:"estimated", condition:"☀️", note:"Hot spell resuming, southerly flow",                       wind:"light",     windMph:8,  gustMph:13, rain:5,  humidity:45, pressure:1026, rainMm:0,   rainHours:0 },
+  { date:"Mon 20 Jul", temp:31, low:18, type:"estimated", condition:"☀️", note:"Very hot, dry soil amplifying heat again",                  wind:"very light",windMph:5,  gustMph:9,  rain:5,  humidity:28, pressure:1029, rainMm:0,   rainHours:0 },
+  { date:"Tue 21 Jul", temp:33, low:19, type:"estimated", condition:"🌤️",note:"Intense heat, blocking high dominant",                     wind:"very light",windMph:4,  gustMph:8,  rain:5,  humidity:11, pressure:1031, rainMm:0,   rainHours:0 },
+  { date:"Wed 22 Jul", temp:32, low:19, type:"estimated", condition:"☀️", note:"Still very hot, some haze",                                wind:"very light",windMph:5,  gustMph:9,  rain:8,  humidity:17, pressure:1030, rainMm:0,   rainHours:0 },
+  { date:"Thu 23 Jul", temp:28, low:16, type:"estimated", condition:"⛅", note:"Gradual breakdown, front approaching",                     wind:"light",     windMph:12, gustMph:20, rain:20, humidity:30, pressure:1023, rainMm:2,   rainHours:1 },
+  { date:"Fri 24 Jul", temp:22, low:14, type:"estimated", condition:"🌦", note:"Atlantic front arrives, cooler and fresher",               wind:"moderate",  windMph:18, gustMph:30, rain:50, humidity:68, pressure:1011, rainMm:9,   rainHours:4 },
+  { date:"Sat 25 Jul", temp:19, low:8,  type:"estimated", condition:"☁️", note:"Heatwave ends bringing in cooler weather",                 wind:"strong",    windMph:30, gustMph:52, rain:20, humidity:62, pressure:1006, rainMm:4,   rainHours:2 },
 ];
 
-// Month record lines: temp, label, color, and which bar indices they span
+// ─── Month record reference lines ────────────────────────────────────────────
 const MONTH_RECORDS = [
-  { temp: 32.8, label: "MAY REC 32.8°C", color: "rgba(255,160,0,0.85)",  startIdx: 0,  endIdx: 6  },
-  { temp: 35.6, label: "JUN REC 35.6°C", color: "rgba(255,80,0,0.85)",   startIdx: 7,  endIdx: 36 },
-  { temp: 40.2, label: "JUL REC 40.2°C", color: "rgba(200,0,255,0.85)",  startIdx: 37, endIdx: 61 },
+  { temp:32.8, label:"MAY REC 32.8", color:"rgba(255,160,0,0.85)", startIdx:0,  endIdx:6  },
+  { temp:35.6, label:"JUN REC 35.6", color:"rgba(255,80,0,0.85)",  startIdx:7,  endIdx:36 },
+  { temp:40.2, label:"JUL REC 40.2", color:"rgba(200,0,255,0.85)", startIdx:37, endIdx:61 },
 ];
 
+// ─── Unit conversion helpers ──────────────────────────────────────────────────
+function cvtTemp(c, unit) {
+  if (unit === "F") return Math.round(c * 9/5 + 32);
+  return c;
+}
+function fmtTemp(c, unit) { return cvtTemp(c, unit) + "°" + unit; }
+
+function cvtSpeed(mph, unit) {
+  if (unit === "kmh") return Math.round(mph * 1.60934);
+  return mph;
+}
+function fmtSpeed(mph, unit) {
+  return cvtSpeed(mph, unit) + (unit === "kmh" ? " km/h" : " mph");
+}
+
+function cvtRain(mm, unit) {
+  if (unit === "in") return (mm * 0.0393701).toFixed(2);
+  return mm.toFixed(1);
+}
+function fmtRain(mm, unit) {
+  if (mm === 0) return "0" + (unit === "in" ? '"' : "mm");
+  return cvtRain(mm, unit) + (unit === "in" ? '"' : "mm");
+}
+
+function cvtPressure(mbar, unit) {
+  if (unit === "pa")  return Math.round(mbar * 100);
+  if (unit === "bar") return (mbar / 1000).toFixed(4);
+  if (unit === "ba")  return Math.round(mbar * 1000);
+  return mbar; // mbar default
+}
+function fmtPressure(mbar, unit) {
+  const v = cvtPressure(mbar, unit);
+  if (unit === "pa")  return v + " Pa";
+  if (unit === "bar") return v + " bar";
+  if (unit === "ba")  return v + " ba";
+  return v + " mbar";
+}
+
+// ─── Wind helpers ─────────────────────────────────────────────────────────────
 function windCategory(mph) {
   if (mph < 5)  return "Very Light Wind";
   if (mph < 10) return "Light Breeze";
@@ -111,55 +152,141 @@ function windCategory(mph) {
   return "Hurricane Winds";
 }
 
-function getShadeFeelLike(temp, wind, humidity) {
-  let feel = temp;
-  const we = {"very light":0,"light":-1,"moderate":-3,"fresh":-5};
-  feel += (we[wind]||0);
-  if (temp>=30&&humidity>=50) feel+=3;
-  else if(temp>=32&&humidity>=20) feel-=3;
-  else if(temp>=26&&humidity>=50) feel-=4;
-  else if(temp>=22&&humidity>=40) feel-=2;
-  else if(temp<18&&humidity>=70&&(wind==="fresh"||wind==="moderate")) feel-=1;
-  else if(temp<18&&wind==="fresh") feel-=8;
-  return Math.round(feel);
+// ─── Feel-like system ─────────────────────────────────────────────────────────
+function getConditionBonus(condition, temp, forShade) {
+  const isRaining = condition.includes("🌧") || condition.includes("⛈") || condition.includes("🌦");
+  const eff = forShade ? (isRaining ? condition : "☁️") : condition;
+  if (eff.includes("⛈")) return -5;
+  if (eff.includes("🌧")) return -4;
+  if (eff.includes("🌦")) return -4;
+  if (eff.includes("☁"))  return -2;
+  if (eff.includes("⛅")) return  0;
+  if (eff.includes("🌤")) return  1;
+  if (eff.includes("🌡")) { return temp>40?8:temp>35?7:temp>30?6:temp>25?5:4; }
+  if (eff.includes("☀"))  { return temp>40?8:temp>35?7:temp>30?6:temp>25?5:temp>20?4:3; }
+  return 0;
+}
+function getHumidityBonus(h) {
+  if (h<=10) return -2; if (h<=20) return -1; if (h<=30) return 0;
+  if (h<=40) return 1;  if (h<=50) return 2;  if (h<=60) return 3;
+  if (h<=70) return 4;  if (h<=80) return 6;  if (h<=90) return 8;
+  return 10;
+}
+function getWindBonus(mph) {
+  if (mph<5)  return  1; if (mph<10) return  0; if (mph<15) return -1;
+  if (mph<20) return -3; if (mph<30) return -5; if (mph<40) return -6;
+  if (mph<50) return -8; if (mph<60) return -13; return -30;
+}
+function getSunFeelLike(temp, mph, hum, cond) {
+  return Math.round(temp + getConditionBonus(cond,temp,false) + getHumidityBonus(hum) + getWindBonus(mph));
+}
+function getShadeFeelLike(temp, mph, hum, cond) {
+  return Math.round(temp + getConditionBonus(cond,temp,true) + getHumidityBonus(hum) + getWindBonus(mph));
+}
+function hasSun(c) { return c.includes("☀")||c.includes("🌡")||c.includes("🌤")||c.includes("⛅"); }
+
+// ─── Colour helpers ───────────────────────────────────────────────────────────
+const tc  = t => t>=36?"#ff1500":t>=33?"#ff3d00":t>=30?"#ff6600":t>=27?"#ff8800":t>=24?"#ffaa00":t>=21?"#ffcc00":t>=18?"#c8d400":t>=15?"#7bbf44":"#4a9fd4";
+const rc  = r => r>=70?"#4488ff":r>=40?"#66aaff":r>=20?"#88ccff":"#aaddff";
+const hc  = h => h>=80?"#7755cc":h>=60?"#9977dd":h>=40?"#bbaaee":"#ddccff";
+const wc  = w => w>=30?"#ff7722":w>=20?"#ffaa44":w>=10?"#ffcc88":"#fff0cc";
+const pc  = p => p>=1030?"#ff6600":p>=1020?"#ffaa00":p>=1010?"#88ddff":p>=1000?"#6699cc":"#9955cc";
+const bg  = t => t>=33?"rgba(255,45,0,0.18)":t>=30?"rgba(255,100,0,0.14)":t>=27?"rgba(255,140,0,0.11)":t>=24?"rgba(255,170,0,0.09)":t>=21?"rgba(255,200,0,0.08)":t>=18?"rgba(180,210,0,0.08)":"rgba(74,159,212,0.06)";
+
+// ─── Settings panel ───────────────────────────────────────────────────────────
+function SettingsPanel({ units, setUnits, onClose }) {
+  const row = { display:"flex", justifyContent:"space-between", alignItems:"center", padding:"10px 0", borderBottom:"1px solid rgba(255,255,255,0.06)" };
+  const label = { fontSize:13, color:"#e8dcc8" };
+  const btnGroup = { display:"flex", gap:5 };
+  function Btn({ val, cur, onClick, children }) {
+    const active = cur === val;
+    return (
+      <button onClick={()=>onClick(val)} style={{
+        padding:"4px 11px", borderRadius:14, border:"1px solid",
+        borderColor: active?"#ff7700":"rgba(255,255,255,0.15)",
+        background: active?"rgba(255,119,0,0.22)":"rgba(255,255,255,0.04)",
+        color: active?"#ffaa44":"#888", fontSize:12, cursor:"pointer"
+      }}>{children}</button>
+    );
+  }
+  return (
+    <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.72)",zIndex:100,display:"flex",alignItems:"flex-start",justifyContent:"center",paddingTop:60}}>
+      <div style={{background:"#0e1624",border:"1px solid rgba(255,119,0,0.35)",borderRadius:16,padding:"22px 24px",width:"min(420px,92vw)",boxShadow:"0 8px 40px rgba(0,0,0,0.8)"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:18}}>
+          <span style={{fontSize:15,color:"#ff9944",letterSpacing:2,textTransform:"uppercase"}}>⚙ Settings</span>
+          <button onClick={onClose} style={{background:"none",border:"none",color:"#888",fontSize:20,cursor:"pointer",lineHeight:1}}>✕</button>
+        </div>
+
+        <div style={row}>
+          <span style={label}>🌡 Temperature</span>
+          <div style={btnGroup}>
+            <Btn val="C" cur={units.temp} onClick={v=>setUnits(u=>({...u,temp:v}))}>°C</Btn>
+            <Btn val="F" cur={units.temp} onClick={v=>setUnits(u=>({...u,temp:v}))}>°F</Btn>
+          </div>
+        </div>
+
+        <div style={row}>
+          <span style={label}>💨 Wind Speed</span>
+          <div style={btnGroup}>
+            <Btn val="mph" cur={units.speed} onClick={v=>setUnits(u=>({...u,speed:v}))}>mph</Btn>
+            <Btn val="kmh" cur={units.speed} onClick={v=>setUnits(u=>({...u,speed:v}))}>km/h</Btn>
+          </div>
+        </div>
+
+        <div style={row}>
+          <span style={label}>🌧 Precipitation</span>
+          <div style={btnGroup}>
+            <Btn val="mm" cur={units.rain} onClick={v=>setUnits(u=>({...u,rain:v}))}>mm</Btn>
+            <Btn val="in" cur={units.rain} onClick={v=>setUnits(u=>({...u,rain:v}))}>in</Btn>
+          </div>
+        </div>
+
+        <div style={{...row, borderBottom:"none"}}>
+          <span style={label}>📊 Pressure</span>
+          <div style={btnGroup}>
+            <Btn val="mbar" cur={units.pressure} onClick={v=>setUnits(u=>({...u,pressure:v}))}>mbar</Btn>
+            <Btn val="pa"   cur={units.pressure} onClick={v=>setUnits(u=>({...u,pressure:v}))}>Pa</Btn>
+            <Btn val="bar"  cur={units.pressure} onClick={v=>setUnits(u=>({...u,pressure:v}))}>bar</Btn>
+            <Btn val="ba"   cur={units.pressure} onClick={v=>setUnits(u=>({...u,pressure:v}))}>ba</Btn>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
-function getSunFeelLike(temp, wind, humidity) {
-  let b;
-  if(wind==="very light") b=temp>=32?14:temp>=26?12:temp>=20?10:8;
-  else if(wind==="light") b=temp>=32?12:temp>=26?10:temp>=20?8:7;
-  else if(wind==="moderate") b=temp>=26?7:6;
-  else b=5;
-  return Math.round(getShadeFeelLike(temp,wind,humidity)+b);
-}
-
-function hasSun(c){return["☀️","🌡️","🌤","⛅"].includes(c);}
-
-const tc=(t)=>t>=36?"#ff1500":t>=33?"#ff3d00":t>=30?"#ff6600":t>=27?"#ff8800":t>=24?"#ffaa00":t>=21?"#ffcc00":t>=18?"#c8d400":t>=15?"#7bbf44":"#4a9fd4";
-const rc=(r)=>r>=70?"#4488ff":r>=40?"#66aaff":r>=20?"#88ccff":"#aaddff";
-const hc=(h)=>h>=80?"#7755cc":h>=60?"#9977dd":h>=40?"#bbaaee":"#ddccff";
-const wc=(w)=>w>=30?"#ff7722":w>=20?"#ffaa44":w>=10?"#ffcc88":"#fff0cc";
-const bg=(t)=>t>=33?"rgba(255,45,0,0.18)":t>=30?"rgba(255,100,0,0.14)":t>=27?"rgba(255,140,0,0.11)":t>=24?"rgba(255,170,0,0.09)":t>=21?"rgba(255,200,0,0.08)":t>=18?"rgba(180,210,0,0.08)":"rgba(74,159,212,0.06)";
-
+// ─── Main App ─────────────────────────────────────────────────────────────────
 function App() {
-  const [sel, setSel]   = useState(null);
-  const [graph, setGraph] = useState("temp");
+  const [sel,      setSel]      = useState(null);
+  const [graph,    setGraph]    = useState("temp");
+  const [showSett, setShowSett] = useState(false);
+  const [units,    setUnits]    = useState({ temp:"C", speed:"mph", rain:"mm", pressure:"mbar" });
 
+  const u = units;
   const maxT = Math.max(...forecastData.map(d=>d.temp));
   const minT = Math.min(...forecastData.map(d=>d.temp));
-  const n = forecastData.length;
+  const n    = forecastData.length;
+  const CHART_H = 143;
 
   const tabs = [
-    {id:"temp",    label:"🌡 Temp",     unit:"°C"},
-    {id:"rain",    label:"🌧 Rain",     unit:"%"},
-    {id:"humidity",label:"💧 Humidity", unit:"%"},
-    {id:"wind",    label:"💨 Wind",     unit:" mph"},
+    {id:"temp",     label:"🌡 Temp"},
+    {id:"rain",     label:"🌧 Rain %"},
+    {id:"rainmm",   label:"💦 Rainfall"},
+    {id:"humidity", label:"💧 Humidity"},
+    {id:"wind",     label:"💨 Wind"},
+    {id:"pressure", label:"📊 Pressure"},
   ];
 
-  const gd = graph==="rain"      ? {values:forecastData.map(d=>d.rain),     colors:forecastData.map(d=>rc(d.rain)),    max:100}
-           : graph==="humidity"  ? {values:forecastData.map(d=>d.humidity), colors:forecastData.map(d=>hc(d.humidity)),max:100}
-           : graph==="wind"      ? {values:forecastData.map(d=>d.windMph),  colors:forecastData.map(d=>wc(d.windMph)), max:40}
-           :                       {values:forecastData.map(d=>d.temp),     colors:forecastData.map(d=>tc(d.temp)),    max:maxT};
+  const maxP = Math.max(...forecastData.map(d=>d.pressure));
+  const minP = Math.min(...forecastData.map(d=>d.pressure));
+  const maxRmm = Math.max(...forecastData.map(d=>d.rainMm));
+
+  const gd = graph==="rain"     ? {values:forecastData.map(d=>d.rain),     colors:forecastData.map(d=>rc(d.rain)),     max:100}
+           : graph==="rainmm"   ? {values:forecastData.map(d=>d.rainMm),   colors:forecastData.map(d=>rc(d.rain)),     max:Math.max(maxRmm,1)}
+           : graph==="humidity" ? {values:forecastData.map(d=>d.humidity), colors:forecastData.map(d=>hc(d.humidity)), max:100}
+           : graph==="wind"     ? {values:forecastData.map(d=>d.windMph),  colors:forecastData.map(d=>wc(d.windMph)),  max:40}
+           : graph==="pressure" ? {values:forecastData.map(d=>d.pressure), colors:forecastData.map(d=>pc(d.pressure)), max:maxP}
+           :                      {values:forecastData.map(d=>d.temp),     colors:forecastData.map(d=>tc(d.temp)),     max:maxT};
 
   const s = {
     page:{fontFamily:"Georgia,'Times New Roman',serif",background:"linear-gradient(160deg,#0a0a1a 0%,#0d1525 40%,#0a0f1e 100%)",minHeight:"100vh",color:"#e8dcc8",overflowX:"hidden"},
@@ -168,16 +295,32 @@ function App() {
     grid:{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(155px,1fr))",gap:9},
   };
 
-  // Bar chart height constants (must match rendering below)
-  const CHART_H = 143; // usable px inside the 155px container (leaving 6px bottom offset)
-  const BAR_GAP = 2;
+  // Graph bar unit label for popup
+  function graphValLabel(d) {
+    if (graph==="temp")     return fmtTemp(d.temp, u.temp);
+    if (graph==="rain")     return d.rain + "%";
+    if (graph==="rainmm")   return fmtRain(d.rainMm, u.rain);
+    if (graph==="humidity") return d.humidity + "%";
+    if (graph==="wind")     return fmtSpeed(d.windMph, u.speed);
+    if (graph==="pressure") return fmtPressure(d.pressure, u.pressure);
+    return "";
+  }
 
   return (
     <div style={s.page}>
-      <div style={s.wrap}>
+      {showSett && <SettingsPanel units={units} setUnits={setUnits} onClose={()=>setShowSett(false)} />}
 
+      <div style={s.wrap}>
         {/* Header */}
-        <div style={{textAlign:"center",marginBottom:32}}>
+        <div style={{textAlign:"center",marginBottom:32,position:"relative"}}>
+          {/* Settings button */}
+          <button onClick={()=>setShowSett(true)} style={{
+            position:"absolute",right:0,top:0,
+            background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.15)",
+            borderRadius:10,padding:"6px 12px",color:"#aaa",fontSize:13,cursor:"pointer",
+            display:"flex",alignItems:"center",gap:6
+          }}>⚙ Settings</button>
+
           <div style={{fontSize:11,letterSpacing:6,color:"#ff7700",textTransform:"uppercase",marginBottom:8}}>2 Month Forecast · London, England</div>
           <h1 style={{fontSize:"clamp(24px,5vw,42px)",fontWeight:"normal",margin:"0 0 5px",color:"#fff",lineHeight:1.1}}>25 May – 25 July 2026</h1>
           <div style={{fontSize:13,color:"#9a8c7a",marginBottom:14}}>Estimated daily maxima · Adjusted for heatwave underestimation</div>
@@ -194,59 +337,48 @@ function App() {
         {/* Graph panel */}
         <div style={s.panel}>
           {/* Tabs */}
-          <div style={{display:"flex",gap:6,marginBottom:16,flexWrap:"wrap",alignItems:"center"}}>
+          <div style={{display:"flex",gap:5,marginBottom:16,flexWrap:"wrap",alignItems:"center"}}>
             {tabs.map(t=>(
               <button key={t.id} onClick={()=>setGraph(t.id)} style={{
-                padding:"5px 13px",borderRadius:20,border:"1px solid",
+                padding:"5px 11px",borderRadius:20,border:"1px solid",
                 borderColor:graph===t.id?"#ff7700":"rgba(255,255,255,0.12)",
                 background:graph===t.id?"rgba(255,119,0,0.18)":"rgba(255,255,255,0.03)",
                 color:graph===t.id?"#ffaa44":"#888",
-                fontSize:12,cursor:"pointer"
+                fontSize:11,cursor:"pointer"
               }}>{t.label}</button>
             ))}
             {sel!==null&&(
               <div style={{marginLeft:"auto",fontSize:12,color:"#aaa"}}>
                 <span style={{color:"#fff",fontWeight:"bold"}}>{forecastData[sel].date}</span>
-                <span style={{color:tc(forecastData[sel].temp),marginLeft:8}}>↑{forecastData[sel].temp}°C</span>
-                <span style={{color:"#7bbf44",marginLeft:6}}>↓{forecastData[sel].low}°C</span>
+                <span style={{color:tc(forecastData[sel].temp),marginLeft:8}}>↑{fmtTemp(forecastData[sel].temp,u.temp)}</span>
+                <span style={{color:"#7bbf44",marginLeft:6}}>↓{fmtTemp(forecastData[sel].low,u.temp)}</span>
               </div>
             )}
           </div>
 
           {/* Bars */}
           <div style={{position:"relative",height:155}}>
-
-            {/* Month-scoped record lines — temp graph only */}
-            {graph==="temp" && MONTH_RECORDS.map((rec, ri) => {
-              // Convert record temp to bottom% using same formula as bars
-              const bottomPx = ((rec.temp - minT) / (maxT - minT)) * CHART_H + 6;
-              const bottomPct = (bottomPx / 155) * 100;
-
-              // left/right % for the span of bars in this month
-              const leftPct  = (rec.startIdx / n) * 100;
-              const rightPct = ((n - 1 - rec.endIdx) / n) * 100;
-
+            {/* Month record lines — temp graph only */}
+            {graph==="temp" && MONTH_RECORDS.map((rec,ri)=>{
+              const bottomPx  = ((rec.temp-minT)/(maxT-minT))*CHART_H+6;
+              const bottomPct = (bottomPx/155)*100;
+              const leftPct   = (rec.startIdx/n)*100;
+              const rightPct  = ((n-1-rec.endIdx)/n)*100;
+              const recLabel  = rec.label + (u.temp==="F" ? " ("+cvtTemp(rec.temp,"F")+"°F)" : "°C");
               return (
-                <div key={ri} style={{
-                  position:"absolute",
-                  bottom: bottomPct + "%",
-                  left:   leftPct  + "%",
-                  right:  rightPct + "%",
-                  borderTop: "1px dashed " + rec.color,
-                  zIndex: 2,
-                  pointerEvents: "none",
-                }}>
-                  <span style={{
-                    fontSize:9,
-                    color: rec.color,
-                    position:"absolute",
-                    right:0,
-                    top:-13,
-                    background:"rgba(10,10,26,0.85)",
-                    padding:"1px 5px",
-                    borderRadius:3,
-                    whiteSpace:"nowrap",
-                  }}>{rec.label}</span>
+                <div key={ri} style={{position:"absolute",bottom:bottomPct+"%",left:leftPct+"%",right:rightPct+"%",borderTop:"1px dashed "+rec.color,zIndex:2,pointerEvents:"none"}}>
+                  <span style={{fontSize:9,color:rec.color,position:"absolute",right:0,top:-13,background:"rgba(10,10,26,0.85)",padding:"1px 5px",borderRadius:3,whiteSpace:"nowrap"}}>{recLabel}</span>
+                </div>
+              );
+            })}
+
+            {/* Pressure reference lines */}
+            {graph==="pressure" && [1010,1020,1030].map(ref=>{
+              const pct = ((ref-minP)/(maxP-minP))*90+6;
+              const pctB = Math.min(Math.max(pct,2),98);
+              return (
+                <div key={ref} style={{position:"absolute",bottom:pctB+"%",left:0,right:0,borderTop:"1px dashed rgba(255,255,255,0.15)",zIndex:2,pointerEvents:"none"}}>
+                  <span style={{fontSize:9,color:"#666",position:"absolute",left:0,top:-11,background:"rgba(10,10,26,0.85)",padding:"1px 4px",borderRadius:2}}>{fmtPressure(ref,u.pressure)}</span>
                 </div>
               );
             })}
@@ -258,39 +390,41 @@ function App() {
                 const isSel=sel===i, isC=d.type==="confirmed", isN=d.type==="near";
                 return(
                   <div key={i} onClick={()=>setSel(sel===i?null:i)}
-                    title={`${d.date}: ${val}${tabs.find(t=>t.id===graph).unit}`}
+                    title={d.date+": "+graphValLabel(d)}
                     style={{flex:1,height:h+"%",
-                      background:isC?`linear-gradient(to top,${col},rgba(255,255,255,0.5))`:isN?`linear-gradient(to top,${col}ee,${col}88)`:`linear-gradient(to top,${col}cc,${col}55)`,
+                      background:isC?("linear-gradient(to top,"+col+",rgba(255,255,255,0.5))"):isN?("linear-gradient(to top,"+col+"ee,"+col+"88)"):("linear-gradient(to top,"+col+"cc,"+col+"55)"),
                       borderRadius:"3px 3px 0 0",cursor:"pointer",
-                      outline:isSel?`2px solid ${col}`:"none",
-                      boxShadow:isC?`0 0 8px ${col}77`:isSel?`0 0 6px ${col}55`:"none",
+                      outline:isSel?"2px solid "+col:"none",
+                      boxShadow:isC?"0 0 8px "+col+"77":isSel?"0 0 6px "+col+"55":"none",
                       opacity:isSel?1:0.88,transition:"all 0.15s",minWidth:0}}
                   />
                 );
               })}
             </div>
 
-            {/* Popup */}
+            {/* Graph popup */}
             {sel!==null&&(()=>{
               const d=forecastData[sel];
-              const bx=(sel/(forecastData.length-1))*100;
+              const bx=(sel/(n-1))*100;
               const fl=bx>62;
               return(
                 <div style={{position:"absolute",bottom:"calc(100% - 143px)",
-                  left:fl?"auto":`calc(${bx}% + 4px)`,right:fl?`calc(${100-bx}% + 4px)`:"auto",
-                  background:"rgba(12,16,30,0.97)",border:`1px solid ${tc(d.temp)}55`,
+                  left:fl?"auto":"calc("+bx+"% + 4px)",right:fl?"calc("+(100-bx)+"% + 4px)":"auto",
+                  background:"rgba(12,16,30,0.97)",border:"1px solid "+tc(d.temp)+"55",
                   borderRadius:10,padding:"11px 13px",minWidth:185,zIndex:10,
                   boxShadow:"0 4px 24px rgba(0,0,0,0.65)",pointerEvents:"none"}}>
                   <div style={{fontSize:13,fontWeight:"bold",color:"#fff",marginBottom:7}}>{d.date} {d.condition}</div>
                   <div style={{display:"flex",gap:16,marginBottom:8}}>
-                    <div><div style={{fontSize:9,color:"#666",textTransform:"uppercase",letterSpacing:1}}>High</div><div style={{fontSize:20,fontWeight:"bold",color:tc(d.temp)}}>{d.temp}°C</div></div>
-                    <div><div style={{fontSize:9,color:"#666",textTransform:"uppercase",letterSpacing:1}}>Low</div><div style={{fontSize:20,fontWeight:"bold",color:"#7bbf44"}}>{d.low}°C</div></div>
+                    <div><div style={{fontSize:9,color:"#666",textTransform:"uppercase",letterSpacing:1}}>High</div><div style={{fontSize:20,fontWeight:"bold",color:tc(d.temp)}}>{fmtTemp(d.temp,u.temp)}</div></div>
+                    <div><div style={{fontSize:9,color:"#666",textTransform:"uppercase",letterSpacing:1}}>Low</div><div style={{fontSize:20,fontWeight:"bold",color:"#7bbf44"}}>{fmtTemp(d.low,u.temp)}</div></div>
                   </div>
                   <div style={{fontSize:11,color:"#aaa",display:"flex",flexDirection:"column",gap:4,lineHeight:1.4}}>
-                    <span>🌧 Rain: <b style={{color:rc(d.rain)}}>{d.rain}%</b></span>
+                    <span>📊 Pressure: <b style={{color:pc(d.pressure)}}>{fmtPressure(d.pressure,u.pressure)}</b></span>
+                    <span>🌧 Rain chance: <b style={{color:rc(d.rain)}}>{d.rain}%</b></span>
+                    <span>💦 Rainfall: <b style={{color:rc(d.rain)}}>{fmtRain(d.rainMm,u.rain)}</b>{d.rainHours>0&&<span style={{color:"#666",fontSize:10}}> over {d.rainHours}h</span>}</span>
                     <span>💧 Humidity: <b style={{color:hc(d.humidity)}}>{d.humidity}%</b></span>
-                    <span>💨 Wind: <b style={{color:wc(d.windMph)}}>{d.windMph} mph</b><span style={{color:"#777",fontSize:10}}> · {windCategory(d.windMph)}</span></span>
-                    <span style={{color:"#888",fontSize:10}}>Gusts up to <b style={{color:wc(d.gustMph)}}>{d.gustMph} mph</b><span style={{color:"#666"}}> ({windCategory(d.gustMph)})</span></span>
+                    <span>💨 Wind: <b style={{color:wc(d.windMph)}}>{fmtSpeed(d.windMph,u.speed)}</b><span style={{color:"#777",fontSize:10}}> · {windCategory(d.windMph)}</span></span>
+                    <span style={{color:"#888",fontSize:10}}>Gusts up to <b style={{color:wc(d.gustMph)}}>{fmtSpeed(d.gustMph,u.speed)}</b></span>
                     <span style={{marginTop:2,color:"#9a8c7a"}}>{d.note}</span>
                   </div>
                 </div>
@@ -303,12 +437,19 @@ function App() {
           </div>
           {graph==="temp"&&(
             <div style={{display:"flex",justifyContent:"flex-end",gap:12,marginTop:5,fontSize:10}}>
-              {[15,20,25,30,35,38].map(t=><span key={t} style={{color:tc(t)}}>{t}°</span>)}
+              {[15,20,25,30,35,38].map(t=><span key={t} style={{color:tc(t)}}>{fmtTemp(t,u.temp)}</span>)}
+            </div>
+          )}
+          {graph==="pressure"&&(
+            <div style={{display:"flex",gap:8,marginTop:6,fontSize:9,color:"#777",flexWrap:"wrap"}}>
+              {[[1035,"High (Heat)","#ff6600"],[1020,"Normal","#88ddff"],[1005,"Low (Rain)","#9955cc"]].map(([p,l,c])=>(
+                <span key={p}><span style={{color:c}}>{fmtPressure(p,u.pressure)}</span> = {l}</span>
+              ))}
             </div>
           )}
           {graph==="wind"&&(
             <div style={{display:"flex",gap:8,marginTop:6,fontSize:9,color:"#777",flexWrap:"wrap"}}>
-              {[["<5","Very Light"],["5-10","Light"],["10-15","Moderate"],["15-20","Fresh"],["20-30","Strong"],["30+","Gale+"]].map(([r,l])=>(
+              {[["<5","Very Light"],["5-10","Light"],["10-20","Mod/Fresh"],["20-30","Strong"],["30+","Gale+"]].map(([r,l])=>(
                 <span key={r}><span style={{color:"#ffcc88"}}>{r} mph</span> = {l}</span>
               ))}
             </div>
@@ -319,18 +460,18 @@ function App() {
         <div style={s.grid}>
           {forecastData.map((d,i)=>{
             const color=tc(d.temp), isC=d.type==="confirmed", isN=d.type==="near", isSel=sel===i;
-            const shade=getShadeFeelLike(d.temp,d.wind,d.humidity);
-            const sun=getSunFeelLike(d.temp,d.wind,d.humidity);
+            const shade=getShadeFeelLike(d.temp,d.windMph,d.humidity,d.condition);
+            const sun=getSunFeelLike(d.temp,d.windMph,d.humidity,d.condition);
             const sunny=hasSun(d.condition);
             const storm=d.humidity>=50&&d.temp>=28;
             const cat=windCategory(d.windMph);
             return(
               <div key={i} onClick={()=>setSel(sel===i?null:i)} style={{
                 background:isSel?bg(d.temp):"rgba(255,255,255,0.03)",
-                border:`1px solid ${isC?color+"66":isN?color+"44":"rgba(255,255,255,0.08)"}`,
+                border:"1px solid "+(isC?color+"66":isN?color+"44":"rgba(255,255,255,0.08)"),
                 borderRadius:12,padding:"13px 11px 11px",cursor:"pointer",
                 transition:"all 0.2s",transform:isSel?"scale(1.03)":"scale(1)",
-                boxShadow:isSel?`0 6px 24px ${color}28`:"none",
+                boxShadow:isSel?"0 6px 24px "+color+"28":"none",
               }}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:7}}>
                   <div>
@@ -343,35 +484,41 @@ function App() {
                   </div>
                 </div>
                 <div style={{display:"flex",alignItems:"baseline",gap:3,marginBottom:8}}>
-                  <span style={{fontSize:32,fontWeight:"bold",color,lineHeight:1}}>{d.temp}</span>
-                  <span style={{fontSize:14,color:color+"bb"}}>°C</span>
-                  <span style={{fontSize:11,color:"#5a7a5a",marginLeft:6}}>↓{d.low}°</span>
+                  <span style={{fontSize:30,fontWeight:"bold",color,lineHeight:1}}>{fmtTemp(d.temp,u.temp)}</span>
+                  <span style={{fontSize:11,color:"#5a7a5a",marginLeft:6}}>↓{fmtTemp(d.low,u.temp)}</span>
                 </div>
                 <div style={{background:"rgba(0,0,0,0.28)",borderRadius:8,padding:"7px 9px",marginBottom:8,display:"flex",flexDirection:"column",gap:4}}>
                   {sunny&&(
                     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                       <span style={{fontSize:11,color:"#ffd060"}}>☀️ Feels in sun</span>
-                      <span style={{fontSize:15,fontWeight:"bold",color:tc(sun)}}>{sun}°C</span>
+                      <span style={{fontSize:14,fontWeight:"bold",color:tc(sun)}}>{fmtTemp(sun,u.temp)}</span>
                     </div>
                   )}
                   <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                     <span style={{fontSize:11,color:"#a0b4c8"}}>🌑 Feels in shade</span>
-                    <span style={{fontSize:15,fontWeight:"bold",color:tc(shade)}}>{shade}°C</span>
+                    <span style={{fontSize:14,fontWeight:"bold",color:tc(shade)}}>{fmtTemp(shade,u.temp)}</span>
                   </div>
                 </div>
-                <div style={{display:"flex",gap:5,fontSize:10,flexWrap:"wrap",marginBottom:isSel?6:0}}>
+                <div style={{display:"flex",gap:4,fontSize:10,flexWrap:"wrap",marginBottom:4}}>
                   <span style={{color:rc(d.rain)}}>🌧{d.rain}%</span>
+                  <span style={{color:rc(d.rain)}}>💦{fmtRain(d.rainMm,u.rain)}</span>
+                  {d.rainHours>0&&<span style={{color:"#6688aa"}}>{d.rainHours}h</span>}
+                </div>
+                <div style={{display:"flex",gap:4,fontSize:10,flexWrap:"wrap",marginBottom:isSel?6:0}}>
                   <span style={{color:hc(d.humidity)}}>💧{d.humidity}%</span>
-                  <span style={{color:wc(d.windMph)}}>💨{d.windMph}mph</span>
+                  <span style={{color:wc(d.windMph)}}>💨{fmtSpeed(d.windMph,u.speed)}</span>
+                  <span style={{color:pc(d.pressure)}}>📊{fmtPressure(d.pressure,u.pressure)}</span>
                 </div>
                 {isSel&&(
                   <div style={{fontSize:11,color:"#9a8c7a",marginTop:6,borderTop:"1px solid rgba(255,255,255,0.07)",paddingTop:8,lineHeight:1.6}}>
                     <div style={{marginBottom:6}}>{d.note}</div>
                     <div style={{display:"flex",flexDirection:"column",gap:3}}>
-                      <span>🌧 Rain: <b style={{color:rc(d.rain)}}>{d.rain}%</b></span>
+                      <span>📊 Pressure: <b style={{color:pc(d.pressure)}}>{fmtPressure(d.pressure,u.pressure)}</b></span>
+                      <span>🌧 Rain chance: <b style={{color:rc(d.rain)}}>{d.rain}%</b></span>
+                      <span>💦 Rainfall: <b style={{color:rc(d.rain)}}>{fmtRain(d.rainMm,u.rain)}</b>{d.rainHours>0&&<span style={{color:"#666",fontSize:10}}> over approx. {d.rainHours} hours</span>}</span>
                       <span>💧 Humidity: <b style={{color:hc(d.humidity)}}>{d.humidity}%</b></span>
-                      <span>💨 Wind: <b style={{color:wc(d.windMph)}}>{d.windMph} mph</b><span style={{color:"#666",fontSize:10}}> — {cat}</span></span>
-                      <span style={{color:"#777",fontSize:10}}>Gusts up to <b style={{color:wc(d.gustMph)}}>{d.gustMph} mph</b><span style={{color:"#555"}}> ({windCategory(d.gustMph)})</span></span>
+                      <span>💨 Wind: <b style={{color:wc(d.windMph)}}>{fmtSpeed(d.windMph,u.speed)}</b><span style={{color:"#666",fontSize:10}}> — {cat}</span></span>
+                      <span style={{color:"#777",fontSize:10}}>Gusts: <b style={{color:wc(d.gustMph)}}>{fmtSpeed(d.gustMph,u.speed)}</b><span style={{color:"#555"}}> ({windCategory(d.gustMph)})</span></span>
                     </div>
                     {isC&&<div style={{color:"#ff7700",marginTop:5,fontSize:10}}>✓ Met Office confirmed</div>}
                     {isN&&<div style={{color:"#4a9fd4",marginTop:5,fontSize:10}}>~ Near-term forecast</div>}
