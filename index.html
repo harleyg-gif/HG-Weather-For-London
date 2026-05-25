@@ -386,8 +386,22 @@ function App() {
             <div style={{display:"flex",alignItems:"flex-end",gap:2,height:"100%"}}>
               {forecastData.map((d,i)=>{
                 const val=gd.values[i], col=gd.colors[i];
-                const h=Math.max(4,(val/gd.max)*90+6);
-                const isSel=sel===i, isC=d.type==="confirmed", isN=d.type==="near";
+
+let h;
+
+if (graph === "pressure") {
+  h = Math.max(
+    4,
+    ((val - minP) / (maxP - minP)) * 90 + 6
+  );
+} else {
+  h = Math.max(
+    4,
+    (val / gd.max) * 90 + 6
+  );
+}
+
+const isSel=sel===i, isC=d.type==="confirmed", isN=d.type==="near";
                 return(
                   <div key={i} onClick={()=>setSel(sel===i?null:i)}
                     title={d.date+": "+graphValLabel(d)}
@@ -433,8 +447,12 @@ function App() {
           </div>
 
           <div style={{display:"flex",justifyContent:"space-between",marginTop:8,fontSize:11,color:"#777"}}>
-            <span>25 May</span><span>1 Jun</span><span>15 Jun</span><span>1 Jul</span><span>25 Jul</span>
-          </div>
+  <span>25 May</span>
+  <span>10 Jun</span>
+  <span>25 Jun</span>
+  <span>10 Jul</span>
+  <span>25 Jul</span>
+</div>
           {graph==="temp"&&(
             <div style={{display:"flex",justifyContent:"flex-end",gap:12,marginTop:5,fontSize:10}}>
               {[15,20,25,30,35,38].map(t=><span key={t} style={{color:tc(t)}}>{fmtTemp(t,u.temp)}</span>)}
