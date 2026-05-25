@@ -1,6 +1,6 @@
-# 🌤️ London Weather Forecast 2026
+# 🌤️ World Weather Forecast 2026
 
-An interactive extended weather forecast for London covering May 24 – July 24, 2026. Features detailed daily predictions, heatwave analysis, and real-time feel-like temperature calculations.
+An interactive extended weather forecast for any location covering May 24 – July 24, 2026. Features detailed daily predictions, heatwave analysis, and real-time feel-like temperature calculations.
 
 ## Features
 
