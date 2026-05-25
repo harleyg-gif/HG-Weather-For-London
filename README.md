@@ -1,6 +1,6 @@
 # 🌤️ World Weather Forecast 2026
 
-An interactive extended weather forecast for any location covering May 24 – July 24, 2026. Features detailed daily predictions, heatwave analysis, and real-time feel-like temperature calculations.
+An interactive extended weather forecast for any location covering 16 days. Features detailed daily predictions, heatwave analysis, and real-time feel-like temperature calculations.
 
 ## Features
 
@@ -14,6 +14,7 @@ An interactive extended weather forecast for any location covering May 24 – Ju
 - "Feels like" calculations for both sun and shade
 - Wind chill and humidity adjustments
 - Record reference lines showing historical data
+- Heatwaves Strengths Are Partially Estimated Based On Pressure Data
 
 🎨 **Beautiful Visualization**
 - Color-coded temperature scale from cool to extreme heat
@@ -44,7 +45,7 @@ This forecast accounts for:
 - **Styling**: Inline CSS with gradient backgrounds
 - **Libraries**: React DOM, Babel standalone
 - **Hosting**: GitHub Pages
-- **Format**: Single HTML file with embedded React
+- **Format**: Dual HTML And json file with embedded React
 
 ## How to Use
 
