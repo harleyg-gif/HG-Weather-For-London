@@ -211,3 +211,210 @@ function App() {
                 <span style={{color:"#7bbf44",marginLeft:6}}>↓{forecastData[sel].low}°C</span>
               </div>
             )}
+          </div>
+
+          {/* Bars */}
+          <div style={{position:"relative",height:155}}>
+
+            {/* Month-scoped record lines — temp graph only */}
+            {graph==="temp" && MONTH_RECORDS.map((rec, ri) => {
+              // Convert record temp to bottom% using same formula as bars
+              const bottomPx = ((rec.temp - minT) / (maxT - minT)) * CHART_H + 6;
+              const bottomPct = (bottomPx / 155) * 100;
+
+              // left/right % for the span of bars in this month
+              const leftPct  = (rec.startIdx / n) * 100;
+              const rightPct = ((n - 1 - rec.endIdx) / n) * 100;
+
+              return (
+                <div key={ri} style={{
+                  position:"absolute",
+                  bottom: bottomPct + "%",
+                  left:   leftPct  + "%",
+                  right:  rightPct + "%",
+                  borderTop: "1px dashed " + rec.color,
+                  zIndex: 2,
+                  pointerEvents: "none",
+                }}>
+                  <span style={{
+                    fontSize:9,
+                    color: rec.color,
+                    position:"absolute",
+                    right:0,
+                    top:-13,
+                    background:"rgba(10,10,26,0.85)",
+                    padding:"1px 5px",
+                    borderRadius:3,
+                    whiteSpace:"nowrap",
+                  }}>{rec.label}</span>
+                </div>
+              );
+            })}
+
+            <div style={{display:"flex",alignItems:"flex-end",gap:2,height:"100%"}}>
+              {forecastData.map((d,i)=>{
+                const val=gd.values[i], col=gd.colors[i];
+                const h=Math.max(4,(val/gd.max)*90+6);
+                const isSel=sel===i, isC=d.type==="confirmed", isN=d.type==="near";
+                return(
+                  <div key={i} onClick={()=>setSel(sel===i?null:i)}
+                    title={`${d.date}: ${val}${tabs.find(t=>t.id===graph).unit}`}
+                    style={{flex:1,height:h+"%",
+                      background:isC?`linear-gradient(to top,${col},rgba(255,255,255,0.5))`:isN?`linear-gradient(to top,${col}ee,${col}88)`:`linear-gradient(to top,${col}cc,${col}55)`,
+                      borderRadius:"3px 3px 0 0",cursor:"pointer",
+                      outline:isSel?`2px solid ${col}`:"none",
+                      boxShadow:isC?`0 0 8px ${col}77`:isSel?`0 0 6px ${col}55`:"none",
+                      opacity:isSel?1:0.88,transition:"all 0.15s",minWidth:0}}
+                  />
+                );
+              })}
+            </div>
+
+            {/* Popup */}
+            {sel!==null&&(()=>{
+              const d=forecastData[sel];
+              const bx=(sel/(forecastData.length-1))*100;
+              const fl=bx>62;
+              return(
+                <div style={{position:"absolute",bottom:"calc(100% - 143px)",
+                  left:fl?"auto":`calc(${bx}% + 4px)`,right:fl?`calc(${100-bx}% + 4px)`:"auto",
+                  background:"rgba(12,16,30,0.97)",border:`1px solid ${tc(d.temp)}55`,
+                  borderRadius:10,padding:"11px 13px",minWidth:185,zIndex:10,
+                  boxShadow:"0 4px 24px rgba(0,0,0,0.65)",pointerEvents:"none"}}>
+                  <div style={{fontSize:13,fontWeight:"bold",color:"#fff",marginBottom:7}}>{d.date} {d.condition}</div>
+                  <div style={{display:"flex",gap:16,marginBottom:8}}>
+                    <div><div style={{fontSize:9,color:"#666",textTransform:"uppercase",letterSpacing:1}}>High</div><div style={{fontSize:20,fontWeight:"bold",color:tc(d.temp)}}>{d.temp}°C</div></div>
+                    <div><div style={{fontSize:9,color:"#666",textTransform:"uppercase",letterSpacing:1}}>Low</div><div style={{fontSize:20,fontWeight:"bold",color:"#7bbf44"}}>{d.low}°C</div></div>
+                  </div>
+                  <div style={{fontSize:11,color:"#aaa",display:"flex",flexDirection:"column",gap:4,lineHeight:1.4}}>
+                    <span>🌧 Rain: <b style={{color:rc(d.rain)}}>{d.rain}%</b></span>
+                    <span>💧 Humidity: <b style={{color:hc(d.humidity)}}>{d.humidity}%</b></span>
+                    <span>💨 Wind: <b style={{color:wc(d.windMph)}}>{d.windMph} mph</b><span style={{color:"#777",fontSize:10}}> · {windCategory(d.windMph)}</span></span>
+                    <span style={{color:"#888",fontSize:10}}>Gusts up to <b style={{color:wc(d.gustMph)}}>{d.gustMph} mph</b><span style={{color:"#666"}}> ({windCategory(d.gustMph)})</span></span>
+                    <span style={{marginTop:2,color:"#9a8c7a"}}>{d.note}</span>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+
+          <div style={{display:"flex",justifyContent:"space-between",marginTop:8,fontSize:11,color:"#777"}}>
+            <span>25 May</span><span>1 Jun</span><span>15 Jun</span><span>1 Jul</span><span>25 Jul</span>
+          </div>
+          {graph==="temp"&&(
+            <div style={{display:"flex",justifyContent:"flex-end",gap:12,marginTop:5,fontSize:10}}>
+              {[15,20,25,30,35,38].map(t=><span key={t} style={{color:tc(t)}}>{t}°</span>)}
+            </div>
+          )}
+          {graph==="wind"&&(
+            <div style={{display:"flex",gap:8,marginTop:6,fontSize:9,color:"#777",flexWrap:"wrap"}}>
+              {[["<5","Very Light"],["5-10","Light"],["10-15","Moderate"],["15-20","Fresh"],["20-30","Strong"],["30+","Gale+"]].map(([r,l])=>(
+                <span key={r}><span style={{color:"#ffcc88"}}>{r} mph</span> = {l}</span>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Day cards */}
+        <div style={s.grid}>
+          {forecastData.map((d,i)=>{
+            const color=tc(d.temp), isC=d.type==="confirmed", isN=d.type==="near", isSel=sel===i;
+            const shade=getShadeFeelLike(d.temp,d.wind,d.humidity);
+            const sun=getSunFeelLike(d.temp,d.wind,d.humidity);
+            const sunny=hasSun(d.condition);
+            const storm=d.humidity>=50&&d.temp>=28;
+            const cat=windCategory(d.windMph);
+            return(
+              <div key={i} onClick={()=>setSel(sel===i?null:i)} style={{
+                background:isSel?bg(d.temp):"rgba(255,255,255,0.03)",
+                border:`1px solid ${isC?color+"66":isN?color+"44":"rgba(255,255,255,0.08)"}`,
+                borderRadius:12,padding:"13px 11px 11px",cursor:"pointer",
+                transition:"all 0.2s",transform:isSel?"scale(1.03)":"scale(1)",
+                boxShadow:isSel?`0 6px 24px ${color}28`:"none",
+              }}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:7}}>
+                  <div>
+                    <div style={{fontSize:11,color:"#bbb",letterSpacing:1,textTransform:"uppercase",fontWeight:"bold"}}>{d.date.split(" ").slice(0,2).join(" ")}</div>
+                    <div style={{fontSize:10,color:"#666",marginTop:1}}>{d.date.split(" ").slice(2).join(" ")}</div>
+                  </div>
+                  <div style={{textAlign:"right"}}>
+                    <span style={{fontSize:20}}>{d.condition}</span>
+                    {storm&&<div style={{fontSize:9,color:"#ffcc00",marginTop:1}}>⚡ storm risk</div>}
+                  </div>
+                </div>
+                <div style={{display:"flex",alignItems:"baseline",gap:3,marginBottom:8}}>
+                  <span style={{fontSize:32,fontWeight:"bold",color,lineHeight:1}}>{d.temp}</span>
+                  <span style={{fontSize:14,color:color+"bb"}}>°C</span>
+                  <span style={{fontSize:11,color:"#5a7a5a",marginLeft:6}}>↓{d.low}°</span>
+                </div>
+                <div style={{background:"rgba(0,0,0,0.28)",borderRadius:8,padding:"7px 9px",marginBottom:8,display:"flex",flexDirection:"column",gap:4}}>
+                  {sunny&&(
+                    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                      <span style={{fontSize:11,color:"#ffd060"}}>☀️ Feels in sun</span>
+                      <span style={{fontSize:15,fontWeight:"bold",color:tc(sun)}}>{sun}°C</span>
+                    </div>
+                  )}
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    <span style={{fontSize:11,color:"#a0b4c8"}}>🌑 Feels in shade</span>
+                    <span style={{fontSize:15,fontWeight:"bold",color:tc(shade)}}>{shade}°C</span>
+                  </div>
+                </div>
+                <div style={{display:"flex",gap:5,fontSize:10,flexWrap:"wrap",marginBottom:isSel?6:0}}>
+                  <span style={{color:rc(d.rain)}}>🌧{d.rain}%</span>
+                  <span style={{color:hc(d.humidity)}}>💧{d.humidity}%</span>
+                  <span style={{color:wc(d.windMph)}}>💨{d.windMph}mph</span>
+                </div>
+                {isSel&&(
+                  <div style={{fontSize:11,color:"#9a8c7a",marginTop:6,borderTop:"1px solid rgba(255,255,255,0.07)",paddingTop:8,lineHeight:1.6}}>
+                    <div style={{marginBottom:6}}>{d.note}</div>
+                    <div style={{display:"flex",flexDirection:"column",gap:3}}>
+                      <span>🌧 Rain: <b style={{color:rc(d.rain)}}>{d.rain}%</b></span>
+                      <span>💧 Humidity: <b style={{color:hc(d.humidity)}}>{d.humidity}%</b></span>
+                      <span>💨 Wind: <b style={{color:wc(d.windMph)}}>{d.windMph} mph</b><span style={{color:"#666",fontSize:10}}> — {cat}</span></span>
+                      <span style={{color:"#777",fontSize:10}}>Gusts up to <b style={{color:wc(d.gustMph)}}>{d.gustMph} mph</b><span style={{color:"#555"}}> ({windCategory(d.gustMph)})</span></span>
+                    </div>
+                    {isC&&<div style={{color:"#ff7700",marginTop:5,fontSize:10}}>✓ Met Office confirmed</div>}
+                    {isN&&<div style={{color:"#4a9fd4",marginTop:5,fontSize:10}}>~ Near-term forecast</div>}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Rationale */}
+        <div style={{marginTop:30,background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:14,padding:"20px"}}>
+          <div style={{fontSize:11,letterSpacing:4,color:"#ff7700",textTransform:"uppercase",marginBottom:16}}>Forecast Rationale</div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))",gap:16}}>
+            {[
+              {icon:"🌊",title:"Jet Stream",text:"Current pattern has the jet stream displaced north, favouring blocking high pressure — a key driver of extended UK heat events."},
+              {icon:"🌱",title:"Dry Soil Effect",text:"England endured its driest spring in 132 years in 2025. Dry ground heats faster, amplifying peak temperatures by 2–4°C."},
+              {icon:"☀️",title:"Warm Spring 2026",text:"May 2026 reached 34–35°C — one of the hottest bank holiday weekends on record, setting a warm baseline for summer."},
+              {icon:"📈",title:"Heatwave Bias",text:"Forecast models systematically underestimate heatwave peaks. Temperatures are adjusted upward for the June and July heat events."},
+              {icon:"🏆",title:"Record Risk",text:"May record is 32.8°C, June's is 35.6°C, July's is 40.2°C. The forecast peaks of 36°C (Jun 20) and 38°C (Jul 5) represent plausible record-threatening events."},
+              {icon:"⚡",title:"Storm Risk",text:"On very hot days when humidity rises unexpectedly, violent thunderstorms are possible. Cards flag days where temp and humidity combine dangerously."},
+            ].map((r,i)=>(
+              <div key={i} style={{display:"flex",gap:12}}>
+                <span style={{fontSize:22,flexShrink:0}}>{r.icon}</span>
+                <div>
+                  <div style={{fontSize:13,color:"#e8dcc8",fontWeight:"bold",marginBottom:4}}>{r.title}</div>
+                  <div style={{fontSize:12,color:"#7a6e5e",lineHeight:1.55}}>{r.text}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div style={{textAlign:"center",marginTop:20,fontSize:11,color:"#4a4a5a",lineHeight:1.7}}>
+          Estimated long-range forecast for illustrative purposes only.<br/>
+          Tap any bar or card for details · First 5 days from Met Office data
+        </div>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
