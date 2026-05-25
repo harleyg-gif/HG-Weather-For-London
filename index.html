@@ -170,6 +170,68 @@ function getDayPeriods(d) {
     afternoon:{ time:"12:00–18:00", temp:d.temp,                                condition:d.condition, rain:d.rain,                                                rainMm:d.rainMm,                               windMph:d.windMph,                    note:d.note },
     evening:  { time:"18:00–00:00", temp:Math.round(d.temp*0.75+d.low*0.25),   condition:d.condition, rain:isRainy?Math.round(d.rain*0.7):Math.max(0,d.rain-15),  rainMm:parseFloat((d.rainMm*0.5).toFixed(1)), windMph:Math.round(d.windMph*1.1),   note:"Cooling down" },
   };
+  // ─── Generate hourly forecast ────────────────────────────────────────────────
+function generateHourlyData(day) {
+  const hours = [];
+
+  for (let h = 0; h < 24; h++) {
+
+    let temp;
+
+    // Temperature curve
+    if (h < 6) {
+      temp = day.low - 1 + (h / 6) * 2;
+    } else if (h < 12) {
+      temp = day.low + ((day.temp - day.low) * ((h - 6) / 6)) * 0.7;
+    } else if (h < 16) {
+      temp = day.temp;
+    } else if (h < 21) {
+      temp = day.temp - ((day.temp - day.low) * ((h - 16) / 5)) * 0.6;
+    } else {
+      temp = day.low + 1;
+    }
+
+    // Rain
+    let rain = Math.max(0, Math.round(day.rain * (
+      h > 13 && h < 19 ? 1 :
+      h > 6 && h < 12 ? 0.6 :
+      0.35
+    )));
+
+    // Wind
+    let wind = Math.round(day.windMph * (
+      h > 12 && h < 18 ? 1 :
+      h > 0 && h < 6 ? 0.7 :
+      0.85
+    ));
+
+    // Humidity
+    let humidity = Math.round(
+      day.humidity +
+      (h < 7 ? 8 : 0) -
+      (h > 12 && h < 17 ? 10 : 0)
+    );
+
+    // Conditions
+    let condition = day.condition;
+
+    if (rain > 60 && temp > 24) condition = "⛈️";
+    else if (rain > 50) condition = "🌧️";
+    else if (rain > 25) condition = "🌦️";
+    else if (temp >= 30) condition = "☀️";
+
+    hours.push({
+      hour: String(h).padStart(2, "0") + ":00",
+      temp: Math.round(temp),
+      rain,
+      wind,
+      humidity,
+      condition
+    });
+  }
+
+  return hours;
+}
 }
 
 // ─── Settings panel ───────────────────────────────────────────────────────────
@@ -324,6 +386,158 @@ function TenDayForecast({ forecastData, units }) {
                   <span style={{color:pc(d.pressure)}}>{fmtPres(d.pressure,u.pressure)}</span>
                 </div>
               </div>
+
+              // ─── Hourly Forecast ─────────────────────────────────────────────────────────
+function HourlyForecast({ forecastData, units }) {
+
+  const [selectedDay, setSelectedDay] = useState(0);
+
+  const day = forecastData[selectedDay];
+  const hourly = generateHourlyData(day);
+
+  return (
+    <div>
+
+      <div style={{
+        fontSize:11,
+        letterSpacing:3,
+        color:"#ff7700",
+        textTransform:"uppercase",
+        marginBottom:16
+      }}>
+        Hourly Forecast
+      </div>
+
+      {/* Day selector */}
+      <div style={{
+        display:"flex",
+        gap:8,
+        overflowX:"auto",
+        marginBottom:18,
+        paddingBottom:4
+      }}>
+        {forecastData.slice(0,10).map((d, i) => {
+
+          const active = selectedDay === i;
+
+          return (
+            <button
+              key={i}
+              onClick={() => setSelectedDay(i)}
+              style={{
+                padding:"8px 12px",
+                borderRadius:12,
+                border:"1px solid",
+                borderColor:active ? "#ff7700" : "rgba(255,255,255,0.1)",
+                background:active
+                  ? "rgba(255,119,0,0.18)"
+                  : "rgba(255,255,255,0.04)",
+                color:active ? "#ffaa44" : "#aaa",
+                cursor:"pointer",
+                whiteSpace:"nowrap",
+                fontSize:12
+              }}
+            >
+              {d.date}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Hourly rows */}
+      <div style={{
+        display:"flex",
+        flexDirection:"column",
+        gap:6
+      }}>
+        {hourly.map((h, i) => {
+
+          const tempColor = tc(h.temp);
+
+          return (
+            <div
+              key={i}
+              style={{
+                display:"grid",
+                gridTemplateColumns:"70px 50px 1fr 70px",
+                alignItems:"center",
+                gap:12,
+                background:"rgba(255,255,255,0.03)",
+                border:"1px solid rgba(255,255,255,0.06)",
+                borderRadius:12,
+                padding:"10px 12px"
+              }}
+            >
+
+              {/* Time */}
+              <div style={{
+                fontSize:13,
+                color:"#bbb"
+              }}>
+                {h.hour}
+              </div>
+
+              {/* Icon */}
+              <div style={{
+                fontSize:20
+              }}>
+                {h.condition}
+              </div>
+
+              {/* Temp bar */}
+              <div>
+                <div style={{
+                  height:6,
+                  background:"rgba(255,255,255,0.06)",
+                  borderRadius:999,
+                  overflow:"hidden",
+                  marginBottom:6
+                }}>
+                  <div style={{
+                    width:(h.temp / 40) * 100 + "%",
+                    height:"100%",
+                    background:tempColor
+                  }}/>
+                </div>
+
+                <div style={{
+                  display:"flex",
+                  gap:10,
+                  fontSize:11,
+                  flexWrap:"wrap"
+                }}>
+                  <span style={{ color: rc(h.rain) }}>
+                    {h.rain}% rain
+                  </span>
+
+                  <span style={{ color: wc(h.wind) }}>
+                    {fmtSpeed(h.wind, units.speed)}
+                  </span>
+
+                  <span style={{ color: hc(h.humidity) }}>
+                    {h.humidity}% hum
+                  </span>
+                </div>
+              </div>
+
+              {/* Temperature */}
+              <div style={{
+                fontSize:18,
+                fontWeight:"bold",
+                color:tempColor,
+                textAlign:"right"
+              }}>
+                {fmtTemp(h.temp, units.temp)}
+              </div>
+
+            </div>
+          );
+        })}
+      </div>
+
+    </div>
+  );
+}
 
               {/* Expanded detail */}
               {isSel && (
@@ -649,7 +863,18 @@ function App() {
         {/* ── Page content ── */}
         {activePage==="overview" && <WeatherOverview forecastData={forecastData} locationName={locationName} dateRange={dateRange} units={units} />}
         {activePage==="ten"      && <TenDayForecast  forecastData={forecastData} units={units} />}
-        {activePage!=="overview" && activePage!=="ten" && <ComingSoon page={activePage} />}
+        {activePage==="hourly" && (
+  <HourlyForecast
+    forecastData={forecastData}
+    units={units}
+  />
+)}
+
+{activePage!=="overview" &&
+ activePage!=="ten" &&
+ activePage!=="hourly" && (
+  <ComingSoon page={activePage} />
+)}
 
         <div style={{textAlign:"center",marginTop:18,fontSize:11,color:"#4a4a5a",lineHeight:1.7}}>
           Estimated long-range forecast for illustrative purposes only.<br/>
