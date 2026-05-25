@@ -29,11 +29,11 @@ const { useState } = React;
 const forecastData = [
   { date:"Mon 25 May", temp:35, low:20, type:"confirmed", condition:"☀️", note:"Bank Holiday scorcher",                                wind:"light",     windMph:8,  gustMph:13, rain:3,  humidity:38 },
   { date:"Tue 26 May", temp:36, low:21, type:"confirmed", condition:"☀️", note:"Hottest of spell",                                     wind:"very light",windMph:4,  gustMph:8,  rain:5,  humidity:42 },
-  { date:"Wed 27 May", temp:24, low:14, type:"confirmed", condition:"🌦️", note:"Atlantic front clears heat",                           wind:"fresh",     windMph:22, gustMph:36, rain:60, humidity:68 },
-  { date:"Thu 28 May", temp:28, low:15, type:"confirmed", condition:"⛅", note:"Recovering warmth",                                    wind:"light",     windMph:11, gustMph:19, rain:15, humidity:52 },
-  { date:"Fri 29 May", temp:32, low:18, type:"confirmed",      condition:"☀️", note:"Heatwave extension, very hot",                         wind:"very light",windMph:5,  gustMph:9,  rain:5,  humidity:40 },
-  { date:"Sat 30 May", temp:24, low:13, type:"near",      condition:"⛈️", note:"Pleasant, settled",                                    wind:"light",     windMph:10, gustMph:17, rain:10, humidity:55 },
-  { date:"Sun 31 May", temp:19, low:8, type:"near",      condition:"🌤️", note:"Atlantic influence arriving",                          wind:"moderate",  windMph:17, gustMph:28, rain:45, humidity:65 },
+  { date:"Wed 27 May", temp:25, low:14, type:"confirmed", condition:"☀️", note:"Atlantic front clears heat",                           wind:"fresh",     windMph:22, gustMph:36, rain:60, humidity:68 },
+  { date:"Thu 28 May", temp:30, low:15, type:"confirmed", condition:"⛅", note:"Recovering warmth",                                    wind:"light",     windMph:11, gustMph:19, rain:15, humidity:52 },
+  { date:"Fri 29 May", temp:26, low:18, type:"confirmed", condition:"🌦️", note:"Heatwave extension, very hot",                         wind:"very light",windMph:5,  gustMph:9,  rain:5,  humidity:40 },
+  { date:"Sat 30 May", temp:24, low:13, type:"near", condition:"⛅️", note:"Pleasant, settled",                                    wind:"light",     windMph:10, gustMph:17, rain:10, humidity:55 },
+  { date:"Sun 31 May", temp:19, low:8, type:"near", condition:"⛈️", note:"Atlantic influence arriving",                          wind:"moderate",  windMph:17, gustMph:28, rain:45, humidity:65 },
   { date:"Mon 1 Jun",  temp:16, low:6, type:"near", condition:"☁️", note:"Cooler start to June",                                 wind:"fresh",     windMph:24, gustMph:38, rain:75, humidity:82 },
   { date:"Tue 2 Jun",  temp:13, low:8,  type:"near", condition:"🌧", note:"Notably cool, showery",                                wind:"fresh",     windMph:25, gustMph:40, rain:80, humidity:85 },
   { date:"Wed 3 Jun",  temp:14, low:9,  type:"near", condition:"☁️", note:"Low pressure lingering",                               wind:"moderate",  windMph:19, gustMph:31, rain:70, humidity:80 },
@@ -125,7 +125,7 @@ function getSunFeelLike(temp, wind, humidity) {
   return Math.round(getShadeFeelLike(temp,wind,humidity)+b);
 }
 
-function hasSun(c){return["🌞","🔥","🌤","⛅"].includes(c);}
+function hasSun(c){return["☀️","🌡️","🌤","⛅"].includes(c);}
 
 const tc=(t)=>t>=36?"#ff1500":t>=33?"#ff3d00":t>=30?"#ff6600":t>=27?"#ff8800":t>=24?"#ffaa00":t>=21?"#ffcc00":t>=18?"#c8d400":t>=15?"#7bbf44":"#4a9fd4";
 const rc=(r)=>r>=70?"#4488ff":r>=40?"#66aaff":r>=20?"#88ccff":"#aaddff";
