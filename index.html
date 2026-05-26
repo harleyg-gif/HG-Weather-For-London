@@ -28,7 +28,6 @@ const { useState, useEffect, useRef } = React;
 
 // ─── Static London forecast data ─────────────────────────────────────────────
 const LONDON_DATA = [
-  { date:"Mon 25 May", temp:35, low:21, type:"confirmed", condition:"☀️",    note:"Bank Holiday scorcher",                                 wind:"light",     windMph:8,  gustMph:13, rain:3,  humidity:38, pressure:1033, rainMm:0,   rainHours:0 },
   { date:"Tue 26 May", temp:36, low:18, type:"confirmed", condition:"☀️",    note:"Hottest of spell, challenging June's peak",              wind:"very light",windMph:4,  gustMph:8,  rain:5,  humidity:42, pressure:1033, rainMm:0,   rainHours:0 },
   { date:"Wed 27 May", temp:25, low:14, type:"confirmed", condition:"☀️",    note:"Atlantic front clears heat",                            wind:"fresh",     windMph:22, gustMph:36, rain:15, humidity:68, pressure:1021, rainMm:2,   rainHours:2 },
   { date:"Thu 28 May", temp:30, low:15, type:"confirmed", condition:"⛅",    note:"Recovering warmth",                                     wind:"light",     windMph:11, gustMph:19, rain:2,  humidity:52, pressure:1026, rainMm:0,   rainHours:0 },
@@ -89,12 +88,13 @@ const LONDON_DATA = [
   { date:"Wed 22 Jul", temp:32, low:19, type:"estimated", condition:"☀️",note:"Still very hot, some haze",                               wind:"very light",windMph:5,  gustMph:9,  rain:8,  humidity:17, pressure:1030, rainMm:0,   rainHours:0 },
   { date:"Thu 23 Jul", temp:28, low:16, type:"estimated", condition:"⛅",note:"Gradual breakdown, front approaching",                    wind:"light",     windMph:12, gustMph:20, rain:20, humidity:30, pressure:1023, rainMm:2,   rainHours:1 },
   { date:"Fri 24 Jul", temp:22, low:14, type:"estimated", condition:"🌦",note:"Atlantic front arrives, cooler and fresher",              wind:"moderate",  windMph:18, gustMph:30, rain:50, humidity:68, pressure:1011, rainMm:9,   rainHours:4 },
-  { date:"Sat 25 Jul", temp:19, low:8,  type:"estimated", condition:"☁️",note:"Heatwave ends bringing in cooler weather",                wind:"strong",    windMph:30, gustMph:52, rain:20, humidity:62, pressure:1006, rainMm:4,   rainHours:2 },
+  { date:"Sat 25 Jul", temp:19, low:8,  type:"estimated", condition:"☁️",note:"Heatwave ends bringing in cooler weather",                wind:"gale",    windMph:30, gustMph:52, rain:20, humidity:62, pressure:1006, rainMm:4,   rainHours:2 },
+  { date:"Sun 26 Jul", temp:18, low:10, type:"estimated", condition:"🌧️🌧️",note:"An extremely low pressure system arrives",           wind:"violent gale", windMph:56, gustMph:77, rain:100, humidity:85, pressure:991, rainMm: 17, rainYours:9 },
 ];
 
 // ─── Month record lines ───────────────────────────────────────────────────────
 const MONTH_RECORDS = [
-  { temp:32.8, label:"MAY REC 32.8", color:"rgba(255,160,0,0.85)", startIdx:0,  endIdx:6  },
+  { temp:35.0, label:"MAY REC 35.0", color:"rgba(255,160,0,0.85)", startIdx:0,  endIdx:6  },
   { temp:35.6, label:"JUN REC 35.6", color:"rgba(255,80,0,0.85)",  startIdx:7,  endIdx:36 },
   { temp:40.2, label:"JUL REC 40.2", color:"rgba(200,0,255,0.85)", startIdx:37, endIdx:61 },
 ];
