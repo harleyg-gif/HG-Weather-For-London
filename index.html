@@ -1,4 +1,3 @@
-cat > /mnt/user-data/outputs/london-forecast.html << 'HTMLEOF'
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -262,6 +261,332 @@ function NavDropdown({ activePage, setActivePage }) {
           })}
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── Hourly data generator (from daily data) ─────────────────────────────────
+function buildHourlyData(dailyData) {
+  // Takes up to 3 days of daily data and creates plausible hourly breakdowns
+  const hours = [];
+  const days = dailyData.slice(0, 3);
+  days.forEach(function(d) {
+    for (var h = 0; h < 24; h++) {
+      // Temperature curve: low at 05:00, peak at 15:00
+      var progress = Math.sin(((h - 5) / 24) * Math.PI * 2 + Math.PI * 0.5);
+      progress = Math.max(0, Math.min(1, (progress + 1) / 2));
+      var tempCurve = d.low + (d.temp - d.low) * Math.pow(progress, 1.4);
+      var temp = Math.round(tempCurve * 10) / 10;
+
+      // Wind: slightly higher in afternoon
+      var windFactor = h >= 11 && h <= 18 ? 1.15 : h < 6 || h > 21 ? 0.75 : 1.0;
+      var windMph = Math.round(d.windMph * windFactor);
+      var gustMph = Math.round(d.gustMph * windFactor);
+
+      // Humidity: higher at night, lower midday
+      var humCurve = d.humidity + (h < 6 || h > 22 ? 12 : h >= 12 && h <= 16 ? -10 : 0);
+      var humidity = Math.min(99, Math.max(10, Math.round(humCurve)));
+
+      // Rain: distribute across rainy hours
+      var rainHourly = 0;
+      var rainChance = d.rain;
+      if (d.rainHours > 0) {
+        // Concentrate rain in morning or afternoon depending on condition
+        var rainPeak = d.condition.includes("⛈") ? (h >= 14 && h <= 18) : (h >= 8 && h <= 14);
+        if (rainPeak) rainChance = Math.min(99, d.rain + 20);
+        rainHourly = parseFloat((d.rainMm * (rainPeak ? 0.12 : 0.02)).toFixed(1));
+      }
+
+      // Pressure: slight dip midday on hot days
+      var presDip = d.temp > 28 && h >= 12 && h <= 16 ? -1 : 0;
+      var pressure = Math.round(d.pressure + presDip);
+
+      // Condition: vary through the day
+      var cond = d.condition;
+      if (h >= 0 && h < 6)   cond = d.condition.includes("⛈") ? "🌧" : d.condition.includes("🌧") ? "🌧" : "🌙";
+      if (h >= 6 && h < 9)   cond = d.condition.includes("⛈") ? "⛅" : d.condition;
+      if (h >= 20)           cond = d.condition.includes("⛈") ? "⛈️" : d.condition.includes("🌧") ? "🌧" : "🌙";
+
+      // UV index: 0 at night, peaks at solar noon
+      var uv = 0;
+      if (h >= 6 && h <= 20) {
+        var solarProg = 1 - Math.abs((h - 13) / 7);
+        var maxUv = d.temp >= 35 ? 9 : d.temp >= 30 ? 8 : d.temp >= 25 ? 7 : d.temp >= 20 ? 5 : 4;
+        uv = d.condition.includes("☁") ? Math.round(maxUv * 0.3 * solarProg) : Math.round(maxUv * solarProg * solarProg);
+      }
+
+      // Visibility: lower when humid/rainy
+      var vis = d.humidity > 80 ? "Poor (2-4km)" : d.humidity > 65 ? "Moderate (5-10km)" : d.humidity > 45 ? "Good (10-20km)" : "Excellent (20km+)";
+
+      // Dew point
+      var dewPoint = Math.round(temp - ((100 - humidity) / 5));
+
+      // Wind direction (stable through day, varies by day)
+      var dirs = ["N","NE","NE","E","SE","SE","S","SW","SW","W","NW","NW"];
+      var windDir = dirs[Math.floor(days.indexOf(d) * 4 + h / 6) % 12];
+
+      // Feels like
+      var feelsLike = Math.round(temp + (windMph < 5 ? 1 : windMph < 10 ? 0 : windMph < 15 ? -1 : -3) + (humidity <= 30 ? 0 : humidity <= 50 ? 2 : humidity <= 70 ? 4 : 6));
+
+      // Cloud cover %
+      var cloud = cond.includes("☀") || cond.includes("🌡") ? Math.round(Math.random() * 15) :
+                  cond.includes("🌤") ? Math.round(20 + Math.random() * 25) :
+                  cond.includes("⛅") ? Math.round(40 + Math.random() * 20) :
+                  cond.includes("☁") ? Math.round(75 + Math.random() * 20) : 90;
+
+      hours.push({
+        day: d.date,
+        hour: h,
+        timeStr: (h < 10 ? "0" : "") + h + ":00",
+        temp: temp,
+        feelsLike: feelsLike,
+        condition: cond,
+        windMph: windMph,
+        gustMph: gustMph,
+        windDir: windDir,
+        humidity: humidity,
+        dewPoint: dewPoint,
+        pressure: pressure,
+        rainChance: Math.min(99, Math.round(rainChance)),
+        rainMm: rainHourly,
+        uv: uv,
+        cloud: cloud,
+        visibility: vis,
+      });
+    }
+  });
+  return hours;
+}
+
+function uvLabel(uv) {
+  if (uv === 0) return { label:"None", color:"#555" };
+  if (uv <= 2)  return { label:"Low", color:"#7bbf44" };
+  if (uv <= 5)  return { label:"Moderate", color:"#ffcc00" };
+  if (uv <= 7)  return { label:"High", color:"#ff8800" };
+  if (uv <= 10) return { label:"Very High", color:"#ff3d00" };
+  return { label:"Extreme", color:"#ff1500" };
+}
+
+// ─── Hourly Forecast view ─────────────────────────────────────────────────────
+function HourlyForecast({ forecastData, units }) {
+  const u = units;
+  const [selDay,  setSelDay]  = useState(0);
+  const [selHour, setSelHour] = useState(null);
+
+  // Build hourly data for selected day + 2 neighbours
+  var dayStart = Math.max(0, selDay);
+  var hourlyAll = buildHourlyData(forecastData.slice(dayStart, dayStart + 3));
+  // Only show hours for the selected day (first 24)
+  var hours = hourlyAll.slice(0, 24);
+
+  var day = forecastData[selDay] || forecastData[0];
+
+  // Max temp for bar scaling
+  var maxH = Math.max(...hours.map(function(h){ return h.temp; }));
+  var minH = Math.min(...hours.map(function(h){ return h.temp; }));
+
+  return (
+    <div>
+      <div style={{fontSize:11,letterSpacing:3,color:"#ff7700",textTransform:"uppercase",marginBottom:16}}>Hourly Forecast</div>
+
+      {/* Day selector */}
+      <div style={{display:"flex",gap:6,marginBottom:18,flexWrap:"wrap"}}>
+        {forecastData.slice(0, 7).map(function(d, i) {
+          var on = selDay === i;
+          return (
+            <button key={i} onClick={function(){ setSelDay(i); setSelHour(null); }} style={{
+              padding:"7px 12px", borderRadius:10, border:"1px solid",
+              borderColor: on ? tc(d.temp) : "rgba(255,255,255,0.12)",
+              background: on ? bgc(d.temp) : "rgba(255,255,255,0.03)",
+              color: on ? tc(d.temp) : "#888", fontSize:11, cursor:"pointer",
+              display:"flex", flexDirection:"column", alignItems:"center", gap:2
+            }}>
+              <span style={{fontSize:16}}>{d.condition}</span>
+              <span style={{fontWeight:"bold"}}>{d.date.split(" ").slice(0,2).join(" ")}</span>
+              <span>{fmtTemp(d.temp, u.temp)}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Temperature arc bar chart */}
+      <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:14,padding:"14px 10px",marginBottom:16}}>
+        <div style={{fontSize:11,color:"#888",marginBottom:10,paddingLeft:4}}>Temperature curve — tap an hour for full details</div>
+        <div style={{display:"flex",alignItems:"flex-end",gap:1,height:80}}>
+          {hours.map(function(h, i) {
+            var barH = Math.max(8, ((h.temp - minH) / Math.max(maxH - minH, 1)) * 68 + 8);
+            var isSel = selHour === i;
+            var col = tc(Math.round(h.temp));
+            var isNight = h.hour < 6 || h.hour >= 21;
+            return (
+              <div key={i} onClick={function(){ setSelHour(selHour === i ? null : i); }}
+                style={{flex:1, display:"flex", flexDirection:"column", alignItems:"center", cursor:"pointer", gap:2}}>
+                <div style={{
+                  width:"100%", height:barH,
+                  background: isSel ? col : (isNight ? col+"55" : col+"99"),
+                  borderRadius:"3px 3px 0 0",
+                  outline: isSel ? "2px solid "+col : "none",
+                  boxShadow: isSel ? "0 0 8px "+col : "none",
+                  transition:"all 0.15s"
+                }}/>
+                {(i % 3 === 0) && <div style={{fontSize:8,color:isSel?"#fff":"#555",marginTop:1}}>{h.timeStr}</div>}
+              </div>
+            );
+          })}
+        </div>
+        {/* Temp scale */}
+        <div style={{display:"flex",justifyContent:"space-between",marginTop:4,fontSize:9,color:"#555",paddingLeft:2,paddingRight:2}}>
+          <span>{fmtTemp(Math.round(minH), u.temp)} min</span>
+          <span>{fmtTemp(Math.round(maxH), u.temp)} max</span>
+        </div>
+      </div>
+
+      {/* Hourly list */}
+      <div style={{display:"flex",flexDirection:"column",gap:6}}>
+        {hours.map(function(h, i) {
+          var isSel = selHour === i;
+          var col = tc(Math.round(h.temp));
+          var isNight = h.hour < 6 || h.hour >= 21;
+          var uvInfo = uvLabel(h.uv);
+          var feelsCol = tc(h.feelsLike);
+          var shadeFl = Math.round(h.feelsLike - (h.condition.includes("☀") || h.condition.includes("🌡") ? getConditionBonus ? 4 : 4 : 0));
+          // shade feel: remove sun bonus, add cloud penalty
+          var shadeTemp = Math.round(h.temp + condBonus("☁️", h.temp, true) + humBonus(h.humidity) + windBonus(h.windMph));
+          var sunTemp   = Math.round(h.temp + condBonus(h.condition, h.temp, false) + humBonus(h.humidity) + windBonus(h.windMph));
+          var hasSunHr  = hasSun(h.condition);
+
+          return (
+            <div key={i} onClick={function(){ setSelHour(selHour === i ? null : i); }}
+              style={{
+                background: isSel ? bgc(Math.round(h.temp)) : (isNight ? "rgba(255,255,255,0.015)" : "rgba(255,255,255,0.03)"),
+                border: "1px solid " + (isSel ? col+"55" : "rgba(255,255,255,0.07)"),
+                borderRadius:11, padding: isSel ? "14px" : "10px 14px",
+                cursor:"pointer", transition:"all 0.2s",
+              }}>
+
+              {/* Collapsed row */}
+              <div style={{display:"flex",alignItems:"center",gap:10}}>
+                {/* Time */}
+                <div style={{width:44,flexShrink:0}}>
+                  <div style={{fontSize:13,fontWeight:"bold",color:isNight?"#666":"#ccc"}}>{h.timeStr}</div>
+                  <div style={{fontSize:9,color:"#444"}}>{isNight ? "Night" : h.hour < 12 ? "AM" : "PM"}</div>
+                </div>
+                {/* Emoji */}
+                <span style={{fontSize:22,flexShrink:0}}>{h.condition}</span>
+                {/* Temp */}
+                <div style={{flexShrink:0,minWidth:46}}>
+                  <div style={{fontSize:18,fontWeight:"bold",color:col,lineHeight:1}}>{fmtTemp(Math.round(h.temp), u.temp)}</div>
+                  <div style={{fontSize:9,color:"#666"}}>feels {fmtTemp(h.feelsLike, u.temp)}</div>
+                </div>
+                {/* Mini stats */}
+                <div style={{flex:1,display:"flex",gap:10,flexWrap:"wrap",fontSize:10}}>
+                  <span style={{color:rc(h.rainChance)}}>{h.rainChance}% rain</span>
+                  {h.rainMm > 0 && <span style={{color:rc(h.rainChance)}}>{fmtRain(h.rainMm, u.rain)}</span>}
+                  <span style={{color:wc(h.windMph)}}>{fmtSpeed(h.windMph, u.speed)}</span>
+                  <span style={{color:hc(h.humidity)}}>{h.humidity}% hum</span>
+                </div>
+                {/* Expand arrow */}
+                <span style={{fontSize:10,color:"#555",flexShrink:0}}>{isSel ? "▲" : "▼"}</span>
+              </div>
+
+              {/* Expanded detail */}
+              {isSel && (
+                <div style={{marginTop:14,borderTop:"1px solid rgba(255,255,255,0.07)",paddingTop:12}}>
+
+                  {/* Feel-like box */}
+                  <div style={{background:"rgba(0,0,0,0.3)",borderRadius:10,padding:"10px 12px",marginBottom:12,display:"flex",gap:20,flexWrap:"wrap"}}>
+                    {hasSunHr && (
+                      <div>
+                        <div style={{fontSize:9,color:"#ffd060",textTransform:"uppercase",letterSpacing:1,marginBottom:2}}>Feels in Sun</div>
+                        <div style={{fontSize:22,fontWeight:"bold",color:tc(sunTemp)}}>{fmtTemp(sunTemp, u.temp)}</div>
+                      </div>
+                    )}
+                    <div>
+                      <div style={{fontSize:9,color:"#a0b4c8",textTransform:"uppercase",letterSpacing:1,marginBottom:2}}>Feels in Shade</div>
+                      <div style={{fontSize:22,fontWeight:"bold",color:tc(shadeTemp)}}>{fmtTemp(shadeTemp, u.temp)}</div>
+                    </div>
+                    <div>
+                      <div style={{fontSize:9,color:"#aaa",textTransform:"uppercase",letterSpacing:1,marginBottom:2}}>Actual Temp</div>
+                      <div style={{fontSize:22,fontWeight:"bold",color:col}}>{fmtTemp(Math.round(h.temp), u.temp)}</div>
+                    </div>
+                  </div>
+
+                  {/* Detail grid */}
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"10px 20px",fontSize:12}}>
+
+                    <div style={{display:"flex",flexDirection:"column",gap:2}}>
+                      <div style={{fontSize:9,color:"#555",textTransform:"uppercase",letterSpacing:1}}>Wind</div>
+                      <div style={{color:wc(h.windMph),fontWeight:"bold"}}>{fmtSpeed(h.windMph, u.speed)} {h.windDir}</div>
+                      <div style={{fontSize:10,color:"#666"}}>{windCat(h.windMph)}</div>
+                    </div>
+
+                    <div style={{display:"flex",flexDirection:"column",gap:2}}>
+                      <div style={{fontSize:9,color:"#555",textTransform:"uppercase",letterSpacing:1}}>Gusts</div>
+                      <div style={{color:wc(h.gustMph),fontWeight:"bold"}}>{fmtSpeed(h.gustMph, u.speed)}</div>
+                      <div style={{fontSize:10,color:"#666"}}>{windCat(h.gustMph)}</div>
+                    </div>
+
+                    <div style={{display:"flex",flexDirection:"column",gap:2}}>
+                      <div style={{fontSize:9,color:"#555",textTransform:"uppercase",letterSpacing:1}}>Rain Chance</div>
+                      <div style={{color:rc(h.rainChance),fontWeight:"bold"}}>{h.rainChance}%</div>
+                      {h.rainMm > 0 && <div style={{fontSize:10,color:rc(h.rainChance)}}>{fmtRain(h.rainMm, u.rain)} expected</div>}
+                    </div>
+
+                    <div style={{display:"flex",flexDirection:"column",gap:2}}>
+                      <div style={{fontSize:9,color:"#555",textTransform:"uppercase",letterSpacing:1}}>Humidity</div>
+                      <div style={{color:hc(h.humidity),fontWeight:"bold"}}>{h.humidity}%</div>
+                      <div style={{fontSize:10,color:"#666"}}>Dew point {fmtTemp(h.dewPoint, u.temp)}</div>
+                    </div>
+
+                    <div style={{display:"flex",flexDirection:"column",gap:2}}>
+                      <div style={{fontSize:9,color:"#555",textTransform:"uppercase",letterSpacing:1}}>Pressure</div>
+                      <div style={{color:pc(h.pressure),fontWeight:"bold"}}>{fmtPres(h.pressure, u.pressure)}</div>
+                      <div style={{fontSize:10,color:"#666"}}>{h.pressure >= 1020 ? "High — settled" : h.pressure >= 1010 ? "Normal" : "Low — unsettled"}</div>
+                    </div>
+
+                    <div style={{display:"flex",flexDirection:"column",gap:2}}>
+                      <div style={{fontSize:9,color:"#555",textTransform:"uppercase",letterSpacing:1}}>UV Index</div>
+                      <div style={{color:uvInfo.color,fontWeight:"bold"}}>{h.uv} — {uvInfo.label}</div>
+                      <div style={{fontSize:10,color:"#666"}}>{h.uv === 0 ? "No UV risk" : h.uv <= 2 ? "No protection needed" : h.uv <= 5 ? "Some protection advised" : h.uv <= 7 ? "Protection essential" : "Stay in shade"}</div>
+                    </div>
+
+                    <div style={{display:"flex",flexDirection:"column",gap:2}}>
+                      <div style={{fontSize:9,color:"#555",textTransform:"uppercase",letterSpacing:1}}>Cloud Cover</div>
+                      <div style={{color:"#aaa",fontWeight:"bold"}}>{h.cloud}%</div>
+                      <div style={{fontSize:10,color:"#666"}}>{h.cloud < 20 ? "Clear sky" : h.cloud < 40 ? "Mostly clear" : h.cloud < 70 ? "Partly cloudy" : "Overcast"}</div>
+                    </div>
+
+                    <div style={{display:"flex",flexDirection:"column",gap:2}}>
+                      <div style={{fontSize:9,color:"#555",textTransform:"uppercase",letterSpacing:1}}>Visibility</div>
+                      <div style={{color:"#aabbcc",fontWeight:"bold",fontSize:11}}>{h.visibility}</div>
+                    </div>
+
+                  </div>
+
+                  {/* Comfort summary */}
+                  <div style={{marginTop:12,background:"rgba(255,255,255,0.03)",borderRadius:8,padding:"8px 10px",fontSize:11,color:"#9a8c7a",lineHeight:1.6}}>
+                    {(function(){
+                      var msgs = [];
+                      if(h.uv >= 8) msgs.push("Extreme UV — avoid prolonged sun exposure.");
+                      else if(h.uv >= 6) msgs.push("High UV — sunscreen and shade essential.");
+                      else if(h.uv >= 3) msgs.push("Moderate UV — apply sunscreen.");
+                      if(sunTemp >= 38) msgs.push("Dangerously hot in direct sun — risk of heat stress.");
+                      else if(sunTemp >= 33) msgs.push("Very hot in direct sun — stay hydrated.");
+                      else if(sunTemp >= 28) msgs.push("Warm in sun — comfortable with hydration.");
+                      if(h.rainChance >= 70) msgs.push("High chance of rain — carry an umbrella.");
+                      else if(h.rainChance >= 40) msgs.push("Rain possible — worth having a jacket.");
+                      if(h.windMph >= 20) msgs.push("Strong wind — may feel uncomfortable outdoors.");
+                      if(h.humidity >= 80) msgs.push("Very humid — heat feels heavier than indicated.");
+                      if(msgs.length === 0) msgs.push("Pleasant conditions — enjoy the weather!");
+                      return msgs.join(" ");
+                    })()}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -649,7 +974,8 @@ function App() {
         {/* ── Page content ── */}
         {activePage==="overview" && <WeatherOverview forecastData={forecastData} locationName={locationName} dateRange={dateRange} units={units} />}
         {activePage==="ten"      && <TenDayForecast  forecastData={forecastData} units={units} />}
-        {activePage!=="overview" && activePage!=="ten" && <ComingSoon page={activePage} />}
+        {activePage==="hourly"   && <HourlyForecast  forecastData={forecastData} units={units} />}
+        {activePage!=="overview" && activePage!=="ten" && activePage!=="hourly" && <ComingSoon page={activePage} />}
 
         <div style={{textAlign:"center",marginTop:18,fontSize:11,color:"#4a4a5a",lineHeight:1.7}}>
           Estimated long-range forecast for illustrative purposes only.<br/>
@@ -664,5 +990,3 @@ ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
 </script>
 </body>
 </html>
-HTMLEOF
-echo "Done"
