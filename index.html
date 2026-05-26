@@ -26,75 +26,13 @@
 <script type="text/babel">
 const { useState, useEffect, useRef } = React;
 
-// ─── Static London forecast data ─────────────────────────────────────────────
-const LONDON_DATA = [
-  { date:"Tue 26 May", temp:36, low:18, type:"confirmed", condition:"☀️",    note:"Hottest of spell, challenging June's peak",              wind:"very light",windMph:4,  gustMph:8,  rain:5,  humidity:42, pressure:1033, rainMm:0,   rainHours:0 },
-  { date:"Wed 27 May", temp:25, low:14, type:"confirmed", condition:"☀️",    note:"Atlantic front clears heat",                            wind:"fresh",     windMph:22, gustMph:36, rain:15, humidity:68, pressure:1021, rainMm:2,   rainHours:2 },
-  { date:"Thu 28 May", temp:30, low:15, type:"confirmed", condition:"⛅",    note:"Recovering warmth",                                     wind:"light",     windMph:11, gustMph:19, rain:2,  humidity:52, pressure:1026, rainMm:0,   rainHours:0 },
-  { date:"Fri 29 May", temp:26, low:18, type:"confirmed", condition:"🌦️",   note:"Heatwave dies, slightly unsettled",                      wind:"very light",windMph:5,  gustMph:9,  rain:100,humidity:40, pressure:1018, rainMm:8,   rainHours:5 },
-  { date:"Sat 30 May", temp:24, low:13, type:"near",      condition:"⛅️",   note:"Pleasant, settled",                                     wind:"light",     windMph:10, gustMph:17, rain:30, humidity:55, pressure:1022, rainMm:3,   rainHours:2 },
-  { date:"Sun 31 May", temp:19, low:8,  type:"near",      condition:"⛈️",   note:"Low Pressure System Arrives, Bringing Unstable Weather", wind:"moderate",  windMph:17, gustMph:28, rain:70, humidity:65, pressure:1008, rainMm:14,  rainHours:7 },
-  { date:"Mon 1 Jun",  temp:16, low:6,  type:"near",      condition:"☁️",   note:"Cooler start to June",                                  wind:"fresh",     windMph:24, gustMph:38, rain:45, humidity:82, pressure:1004, rainMm:9,   rainHours:5 },
-  { date:"Tue 2 Jun",  temp:13, low:8,  type:"near",      condition:"🌧",   note:"Notably cool, showery",                                 wind:"fresh",     windMph:25, gustMph:40, rain:75, humidity:85, pressure:1002, rainMm:18,  rainHours:8 },
-  { date:"Wed 3 Jun",  temp:14, low:9,  type:"near",      condition:"☁️",   note:"Low pressure lingering",                                wind:"moderate",  windMph:19, gustMph:31, rain:70, humidity:80, pressure:1005, rainMm:11,  rainHours:6 },
-  { date:"Thu 4 Jun",  temp:18, low:7,  type:"near",      condition:"🌦",   note:"Gradual improvement",                                   wind:"light",     windMph:12, gustMph:21, rain:35, humidity:62, pressure:1012, rainMm:5,   rainHours:3 },
-  { date:"Fri 5 Jun",  temp:22, low:12, type:"near",      condition:"⛅",   note:"High pressure building",                                wind:"light",     windMph:9,  gustMph:15, rain:15, humidity:42, pressure:1018, rainMm:1,   rainHours:1 },
-  { date:"Sat 6 Jun",  temp:25, low:13, type:"near",      condition:"🌤",   note:"Warm spell returning",                                  wind:"light",     windMph:9,  gustMph:14, rain:8,  humidity:35, pressure:1022, rainMm:0,   rainHours:0 },
-  { date:"Sun 7 Jun",  temp:27, low:15, type:"near",      condition:"☀️",   note:"Jet stream north of UK",                                wind:"light",     windMph:7,  gustMph:12, rain:5,  humidity:30, pressure:1025, rainMm:0,   rainHours:0 },
-  { date:"Mon 8 Jun",  temp:29, low:16, type:"estimated", condition:"☀️",   note:"Dry soil amplifying heat",                              wind:"light",     windMph:7,  gustMph:12, rain:5,  humidity:32, pressure:1027, rainMm:0,   rainHours:0 },
-  { date:"Tue 9 Jun",  temp:30, low:17, type:"estimated", condition:"☀️",   note:"Southerly flow, hot",                                   wind:"very light",windMph:5,  gustMph:9,  rain:8,  humidity:38, pressure:1028, rainMm:0,   rainHours:0 },
-  { date:"Wed 10 Jun", temp:27, low:15, type:"estimated", condition:"⛅",   note:"Brief frontal passage",                                 wind:"moderate",  windMph:16, gustMph:27, rain:25, humidity:55, pressure:1019, rainMm:4,   rainHours:2 },
-  { date:"Thu 11 Jun", temp:23, low:13, type:"estimated", condition:"🌦",   note:"Cooler interlude",                                      wind:"fresh",     windMph:20, gustMph:33, rain:55, humidity:68, pressure:1010, rainMm:10,  rainHours:5 },
-  { date:"Fri 12 Jun", temp:20, low:11, type:"estimated", condition:"☁️",   note:"Showery trough",                                        wind:"fresh",     windMph:23, gustMph:37, rain:90, humidity:75, pressure:1006, rainMm:16,  rainHours:7 },
-  { date:"Sat 13 Jun", temp:19, low:11, type:"estimated", condition:"🌧️",  note:"Unsettled",                                              wind:"moderate",  windMph:17, gustMph:29, rain:50, humidity:70, pressure:1008, rainMm:12,  rainHours:6 },
-  { date:"Sun 14 Jun", temp:21, low:12, type:"estimated", condition:"⛅",   note:"Improving",                                             wind:"light",     windMph:11, gustMph:18, rain:20, humidity:58, pressure:1015, rainMm:2,   rainHours:1 },
-  { date:"Mon 15 Jun", temp:24, low:13, type:"estimated", condition:"🌤",   note:"Warming trend",                                         wind:"light",     windMph:9,  gustMph:14, rain:10, humidity:50, pressure:1020, rainMm:0,   rainHours:0 },
-  { date:"Tue 16 Jun", temp:27, low:15, type:"estimated", condition:"☀️",   note:"High pressure builds",                                  wind:"light",     windMph:7,  gustMph:12, rain:5,  humidity:45, pressure:1024, rainMm:0,   rainHours:0 },
-  { date:"Wed 17 Jun", temp:30, low:17, type:"estimated", condition:"☀️",   note:"Hot and dry",                                           wind:"very light",windMph:4,  gustMph:8,  rain:5,  humidity:42, pressure:1028, rainMm:0,   rainHours:0 },
-  { date:"Thu 18 Jun", temp:32, low:18, type:"estimated", condition:"🌦️",  note:"Heatwave developing",                                   wind:"very light",windMph:4,  gustMph:7,  rain:5,  humidity:45, pressure:1030, rainMm:0,   rainHours:0 },
-  { date:"Fri 19 Jun", temp:34, low:20, type:"estimated", condition:"⛈️",  note:"Major heat event",                                      wind:"very light",windMph:4,  gustMph:7,  rain:5,  humidity:48, pressure:1031, rainMm:0,   rainHours:0 },
-  { date:"Sat 20 Jun", temp:36, low:21, type:"estimated", condition:"🌡️",  note:"Record-challenging peak! Possible thunderstorms late",   wind:"very light",windMph:3,  gustMph:12, rain:15, humidity:52, pressure:1032, rainMm:1,   rainHours:1 },
-  { date:"Sun 21 Jun", temp:35, low:21, type:"estimated", condition:"🌡️",  note:"Solstice heatwave — storm risk remains",                 wind:"very light",windMph:4,  gustMph:14, rain:20, humidity:55, pressure:1030, rainMm:2,   rainHours:1 },
-  { date:"Mon 22 Jun", temp:33, low:20, type:"estimated", condition:"☀️",  note:"Still very hot",                                        wind:"light",     windMph:6,  gustMph:11, rain:8,  humidity:50, pressure:1028, rainMm:0,   rainHours:0 },
-  { date:"Tue 23 Jun", temp:29, low:17, type:"estimated", condition:"⛅",  note:"Gradual breakdown",                                     wind:"light",     windMph:11, gustMph:19, rain:20, humidity:58, pressure:1022, rainMm:2,   rainHours:1 },
-  { date:"Wed 24 Jun", temp:24, low:14, type:"estimated", condition:"⛈️",  note:"Front clears",                                          wind:"fresh",     windMph:20, gustMph:32, rain:58, humidity:72, pressure:1009, rainMm:13,  rainHours:6 },
-  { date:"Thu 25 Jun", temp:19, low:11, type:"estimated", condition:"⛈️",  note:"Cooler, wet spell",                                     wind:"fresh",     windMph:22, gustMph:36, rain:75, humidity:80, pressure:1004, rainMm:18,  rainHours:8 },
-  { date:"Fri 26 Jun", temp:16, low:10, type:"estimated", condition:"☁️",  note:"Notably cool and wet",                                  wind:"fresh",     windMph:24, gustMph:38, rain:80, humidity:85, pressure:1002, rainMm:20,  rainHours:9 },
-  { date:"Sat 27 Jun", temp:17, low:10, type:"estimated", condition:"🌦",  note:"Still unsettled",                                       wind:"moderate",  windMph:17, gustMph:28, rain:55, humidity:72, pressure:1007, rainMm:10,  rainHours:5 },
-  { date:"Sun 28 Jun", temp:15, low:9,  type:"estimated", condition:"🌥️", note:"Coldest of the cool spell",                              wind:"fresh",     windMph:25, gustMph:41, rain:82, humidity:88, pressure:1001, rainMm:22,  rainHours:10},
-  { date:"Mon 29 Jun", temp:18, low:10, type:"estimated", condition:"🌦",  note:"Slowly improving",                                      wind:"light",     windMph:12, gustMph:20, rain:35, humidity:62, pressure:1010, rainMm:6,   rainHours:3 },
-  { date:"Tue 30 Jun", temp:25, low:14, type:"estimated", condition:"⛅",  note:"Warming up quickly",                                    wind:"light",     windMph:9,  gustMph:15, rain:12, humidity:50, pressure:1017, rainMm:1,   rainHours:1 },
-  { date:"Wed 1 Jul",  temp:28, low:16, type:"estimated", condition:"🌤",  note:"Heat building again",                                   wind:"light",     windMph:8,  gustMph:13, rain:8,  humidity:48, pressure:1022, rainMm:0,   rainHours:0 },
-  { date:"Thu 2 Jul",  temp:31, low:18, type:"estimated", condition:"☀️",  note:"Hot southerly plume",                                   wind:"light",     windMph:7,  gustMph:12, rain:5,  humidity:45, pressure:1026, rainMm:0,   rainHours:0 },
-  { date:"Fri 3 Jul",  temp:33, low:19, type:"estimated", condition:"☀️",  note:"Heatwave developing",                                   wind:"very light",windMph:4,  gustMph:8,  rain:5,  humidity:33, pressure:1030, rainMm:0,   rainHours:0 },
-  { date:"Sat 4 Jul",  temp:37, low:22, type:"estimated", condition:"🌡️", note:"Exceptional heat event",                                 wind:"very light",windMph:3,  gustMph:10, rain:8,  humidity:15, pressure:1034, rainMm:0,   rainHours:0 },
-  { date:"Sun 5 Jul",  temp:38, low:23, type:"estimated", condition:"🌡️", note:"Possible peak of summer!",                               wind:"very light",windMph:3,  gustMph:15, rain:18, humidity:5,  pressure:1035, rainMm:0,   rainHours:0 },
-  { date:"Mon 6 Jul",  temp:36, low:22, type:"estimated", condition:"🌡️", note:"Still dangerously hot — thunderstorm risk",              wind:"very light",windMph:4,  gustMph:18, rain:22, humidity:15, pressure:1033, rainMm:1,   rainHours:1 },
-  { date:"Tue 7 Jul",  temp:32, low:20, type:"estimated", condition:"⛈️", note:"Gradual breakdown",                                      wind:"light",     windMph:7,  gustMph:13, rain:70, humidity:45, pressure:1018, rainMm:12,  rainHours:5 },
-  { date:"Wed 8 Jul",  temp:23, low:15, type:"estimated", condition:"⛈️", note:"Atlantic front arrives",                                 wind:"fresh",     windMph:21, gustMph:34, rain:80, humidity:72, pressure:1007, rainMm:18,  rainHours:8 },
-  { date:"Thu 9 Jul",  temp:19, low:12, type:"estimated", condition:"⛈️", note:"Notably cooler",                                         wind:"fresh",     windMph:24, gustMph:38, rain:75, humidity:80, pressure:1003, rainMm:16,  rainHours:7 },
-  { date:"Fri 10 Jul", temp:15, low:10, type:"estimated", condition:"🌧", note:"Cool and wet interlude",                                 wind:"fresh",     windMph:25, gustMph:40, rain:80, humidity:85, pressure:1001, rainMm:20,  rainHours:9 },
-  { date:"Sat 11 Jul", temp:17, low:11, type:"estimated", condition:"🌤", note:"Still unsettled",                                        wind:"moderate",  windMph:16, gustMph:26, rain:52, humidity:70, pressure:1008, rainMm:10,  rainHours:5 },
-  { date:"Sun 12 Jul", temp:22, low:13, type:"estimated", condition:"⛅", note:"Improving",                                              wind:"light",     windMph:11, gustMph:18, rain:18, humidity:58, pressure:1015, rainMm:2,   rainHours:1 },
-  { date:"Mon 13 Jul", temp:21, low:13, type:"estimated", condition:"⛅", note:"Warm spells, some cloud",                               wind:"light",     windMph:9,  gustMph:15, rain:15, humidity:55, pressure:1017, rainMm:1,   rainHours:1 },
-  { date:"Tue 14 Jul", temp:24, low:14, type:"estimated", condition:"🌤", note:"Pleasantly warm",                                        wind:"light",     windMph:9,  gustMph:14, rain:8,  humidity:50, pressure:1020, rainMm:0,   rainHours:0 },
-  { date:"Wed 15 Jul", temp:20, low:12, type:"estimated", condition:"🌦", note:"Brief frontal passage",                                  wind:"moderate",  windMph:16, gustMph:26, rain:45, humidity:68, pressure:1012, rainMm:8,   rainHours:4 },
-  { date:"Thu 16 Jul", temp:18, low:11, type:"estimated", condition:"🌧", note:"Cool and showery",                                       wind:"fresh",     windMph:22, gustMph:35, rain:70, humidity:75, pressure:1006, rainMm:15,  rainHours:7 },
-  { date:"Fri 17 Jul", temp:25, low:14, type:"estimated", condition:"🌤", note:"Warm recovery",                                          wind:"light",     windMph:9,  gustMph:15, rain:10, humidity:50, pressure:1018, rainMm:1,   rainHours:1 },
-  { date:"Sat 18 Jul", temp:27, low:15, type:"estimated", condition:"🌤", note:"Continued warm recovery, high pressure building",         wind:"light",     windMph:10, gustMph:17, rain:8,  humidity:48, pressure:1022, rainMm:0,   rainHours:0 },
-  { date:"Sun 19 Jul", temp:29, low:16, type:"estimated", condition:"☀️",note:"Hot spell resuming, southerly flow",                      wind:"light",     windMph:8,  gustMph:13, rain:5,  humidity:45, pressure:1026, rainMm:0,   rainHours:0 },
-  { date:"Mon 20 Jul", temp:31, low:18, type:"estimated", condition:"☀️",note:"Very hot, dry soil amplifying heat again",                 wind:"very light",windMph:5,  gustMph:9,  rain:5,  humidity:28, pressure:1029, rainMm:0,   rainHours:0 },
-  { date:"Tue 21 Jul", temp:33, low:19, type:"estimated", condition:"🌤️",note:"Intense heat, blocking high dominant",                   wind:"very light",windMph:4,  gustMph:8,  rain:5,  humidity:11, pressure:1031, rainMm:0,   rainHours:0 },
-  { date:"Wed 22 Jul", temp:32, low:19, type:"estimated", condition:"☀️",note:"Still very hot, some haze",                               wind:"very light",windMph:5,  gustMph:9,  rain:8,  humidity:17, pressure:1030, rainMm:0,   rainHours:0 },
-  { date:"Thu 23 Jul", temp:28, low:16, type:"estimated", condition:"⛅",note:"Gradual breakdown, front approaching",                    wind:"light",     windMph:12, gustMph:20, rain:20, humidity:30, pressure:1023, rainMm:2,   rainHours:1 },
-  { date:"Fri 24 Jul", temp:22, low:14, type:"estimated", condition:"🌦",note:"Atlantic front arrives, cooler and fresher",              wind:"moderate",  windMph:18, gustMph:30, rain:50, humidity:68, pressure:1011, rainMm:9,   rainHours:4 },
-  { date:"Sat 25 Jul", temp:19, low:8,  type:"estimated", condition:"☁️",note:"Heatwave ends bringing in cooler weather",                wind:"gale",    windMph:30, gustMph:52, rain:20, humidity:62, pressure:1006, rainMm:4,   rainHours:2 },
-  { date:"Sun 26 Jul", temp:18, low:10, type:"estimated", condition:"🌧️🌧️",note:"An extremely low pressure system arrives",           wind:"violent gale", windMph:56, gustMph:77, rain:100, humidity:85, pressure:991, rainMm: 17, rainYours:9 },
-];
+// ─── Minimal loading placeholder (replaced immediately on mount) ──────────────
+const LOADING_DATA = [];
+
 
 // ─── Month record lines ───────────────────────────────────────────────────────
 const MONTH_RECORDS = [
-  { temp:35.0, label:"MAY REC 35.0", color:"rgba(255,160,0,0.85)", startIdx:0,  endIdx:6  },
+  { temp:32.8, label:"MAY REC 32.8", color:"rgba(255,160,0,0.85)", startIdx:0,  endIdx:6  },
   { temp:35.6, label:"JUN REC 35.6", color:"rgba(255,80,0,0.85)",  startIdx:7,  endIdx:36 },
   { temp:40.2, label:"JUL REC 40.2", color:"rgba(200,0,255,0.85)", startIdx:37, endIdx:61 },
 ];
@@ -869,6 +807,175 @@ function WeatherGraphs({ forecastData, hourlyRaw, units }) {
   );
 }
 
+
+// ─── Map & Radar ──────────────────────────────────────────────────────────────
+function MapRadar({ locationName, forecastData }) {
+  const [layer, setLayer] = useState("clouds");
+  const layers = [
+    {id:"clouds",   label:"Cloud Cover",  wl:"clouds_new"},
+    {id:"precip",   label:"Precipitation",wl:"precipitation_new"},
+    {id:"pressure", label:"Pressure",     wl:"pressure_new"},
+    {id:"wind",     label:"Wind Speed",   wl:"wind_new"},
+    {id:"temp",     label:"Temperature",  wl:"temp_new"},
+  ];
+  var lat = 51.5074, lon = -0.1278, zoom = 5;
+  var tile = layers.find(function(l){return l.id===layer;}) || layers[0];
+  var apiKey = "ae1c71166a78c7c450b495408e5e0d53";
+  var owmUrl = "https://tile.openweathermap.org/map/"+tile.wl+"/{z}/{x}/{y}.png?appid="+apiKey;
+  var mapHtml = [
+    "<!DOCTYPE html><html><head>",
+    "<link rel='stylesheet' href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'/>",
+    "<script src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'><\/script>",
+    "<style>body{margin:0;background:#0a0a1a}#m{height:100vh}</style></head><body>",
+    "<div id='m'></div><script>",
+    "var map=L.map('m',{zoomControl:true}).setView(["+lat+","+lon+"],"+zoom+");",
+    "L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'OSM',opacity:0.7}).addTo(map);",
+    "L.tileLayer('"+owmUrl+"',{opacity:0.6,attribution:'OpenWeatherMap'}).addTo(map);",
+    "L.marker(["+lat+","+lon+"]).addTo(map).bindPopup('"+locationName.replace(/'/g,"")+"').openPopup();",
+    "<\/script></body></html>"
+  ].join("");
+
+  return (
+    <div>
+      <div style={{fontSize:11,letterSpacing:3,color:"#ff7700",textTransform:"uppercase",marginBottom:16}}>Map and Radar</div>
+      <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:12}}>
+        {layers.map(function(l){
+          var on=layer===l.id;
+          return <button key={l.id} onClick={function(){setLayer(l.id);}} style={{padding:"5px 11px",borderRadius:20,border:"1px solid",borderColor:on?"#ff7700":"rgba(255,255,255,0.12)",background:on?"rgba(255,119,0,0.18)":"rgba(255,255,255,0.03)",color:on?"#ffaa44":"#888",fontSize:11,cursor:"pointer"}}>{l.label}</button>;
+        })}
+      </div>
+      <div style={{borderRadius:14,overflow:"hidden",border:"1px solid rgba(255,255,255,0.1)",height:400,marginBottom:16}}>
+        <iframe key={layer} srcDoc={mapHtml} style={{width:"100%",height:"100%",border:"none"}} title="Weather Map"/>
+      </div>
+      {forecastData.length>0&&(
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:8}}>
+          {forecastData.slice(0,6).map(function(d,i){
+            return <div key={i} style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:10,padding:"10px",textAlign:"center"}}>
+              <div style={{fontSize:9,color:"#666",marginBottom:3}}>{d.date.split(" ").slice(0,2).join(" ")}</div>
+              <div style={{fontSize:22}}>{d.condition}</div>
+              <div style={{fontSize:15,fontWeight:"bold",color:tc(d.temp)}}>{d.temp}°C</div>
+              <div style={{fontSize:10,color:"#5a7a5a"}}>↓{d.low}°C</div>
+              <div style={{fontSize:10,color:rc(d.rain),marginTop:2}}>{d.rain}%</div>
+            </div>;
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Weather Extremes ─────────────────────────────────────────────────────────
+function WeatherExtremes({ forecastData, locationName, units }) {
+  const u = units;
+  const [liveRecords, setLiveRecords] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const [error, setError] = useState("");
+
+  async function loadExtremes() {
+    setLoading(true); setError(""); setLiveRecords([]);
+    try {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+          model:"claude-sonnet-4-20250514",
+          max_tokens:1000,
+          tools:[{type:"web_search_20250305",name:"web_search"}],
+          messages:[{role:"user",content:"Search for recent world weather records and extremes being broken in 2025 or 2026. Find current hottest temperature, coldest, most rainfall, strongest wind, any national or global records broken recently. Respond ONLY with valid JSON, no markdown, no preamble: {"records":[{"title":"string","value":"string","location":"string","date":"string","context":"string","icon":"emoji","color":"hex"}]} where color reflects the type (heat=red, cold=blue, rain=blue, wind=cyan)."}]
+        })
+      });
+      const data = await res.json();
+      var text = (data.content||[]).map(function(c){return c.type==="text"?c.text:"";}).join("").replace(/```json|```/g,"").trim();
+      var parsed = JSON.parse(text);
+      setLiveRecords(parsed.records||[]);
+      setLoaded(true);
+    } catch(e) {
+      setError("Could not fetch live data. Showing all-time records below.");
+      setLoaded(true);
+    }
+    setLoading(false);
+  }
+
+  var allTime = [
+    {title:"Highest Temperature",value:"56.7°C / 134°F",location:"Furnace Creek, Death Valley, USA",date:"10 Jul 1913",context:"The highest reliably recorded surface air temperature on Earth.",icon:"🔥",color:"#ff1500"},
+    {title:"Lowest Temperature",value:"-89.2°C / -128.6°F",location:"Vostok Station, Antarctica",date:"21 Jul 1983",context:"Recorded at the Soviet Antarctic research station during midwinter.",icon:"🧊",color:"#88ccff"},
+    {title:"Most Rain in 24 Hours",value:"1,825mm / 71.8 inches",location:"Cilaos, Réunion Island",date:"7-8 Jan 1966",context:"During Tropical Cyclone Denise — the highest ever 24-hour rainfall total.",icon:"🌊",color:"#4488ff"},
+    {title:"Strongest Wind Gust",value:"408 km/h / 253 mph",location:"Barrow Island, Australia",date:"10 Apr 1996",context:"Recorded during Tropical Cyclone Olivia — highest surface gust ever measured.",icon:"🌀",color:"#00ccff"},
+    {title:"Hottest Month Ever (Global)",value:"+1.51°C above pre-industrial",location:"Global Average",date:"July 2023",context:"July 2023 was the hottest month in recorded global history, shattering previous records.",icon:"🌍",color:"#ff6600"},
+    {title:"Highest Snowfall in 24h",value:"192cm / 75.8 inches",location:"Silver Lake, Colorado, USA",date:"14-15 Apr 1921",context:"The greatest single-day snowfall ever recorded at any weather station.",icon:"❄️",color:"#aaddff"},
+    {title:"Longest Drought",value:"No rain for 173 months",location:"Arica, Chile",date:"Oct 1903 – Jan 1918",context:"The Atacama Desert city went over 14 consecutive years without measurable rainfall.",icon:"🏜️",color:"#cc8833"},
+    {title:"Largest Hailstone",value:"20cm / 8in diameter",location:"Vivian, South Dakota, USA",date:"23 Jul 2010",context:"Weighed 878g (nearly 2 lbs) — the largest hailstone ever officially recorded.",icon:"⛏️",color:"#aabbcc"},
+  ];
+
+  var localExtremes = [];
+  if (forecastData.length > 0) {
+    var maxT = forecastData.reduce(function(a,d){return d.temp>a.temp?d:a;});
+    var minT = forecastData.reduce(function(a,d){return d.low<a.low?d:a;});
+    var maxR = forecastData.reduce(function(a,d){return d.rainMm>a.rainMm?d:a;});
+    var maxW = forecastData.reduce(function(a,d){return d.windMph>a.windMph?d:a;});
+    localExtremes = [
+      {title:"Forecast Peak",value:fmtTemp(maxT.temp,u.temp),location:locationName,date:maxT.date,context:"Highest temperature in the 13-day forecast.",icon:"🌡️",color:tc(maxT.temp)},
+      {title:"Overnight Low",value:fmtTemp(minT.low,u.temp),location:locationName,date:minT.date,context:"Coldest night in the forecast period.",icon:"🌙",color:"#88ccff"},
+      {title:"Heaviest Rain",value:fmtRain(maxR.rainMm,u.rain)+" ("+maxR.rain+"%)",location:locationName,date:maxR.date,context:"Most rainfall expected in a single day.",icon:"🌧",color:"#4488ff"},
+      {title:"Strongest Wind",value:fmtSpeed(maxW.windMph,u.speed),location:locationName,date:maxW.date,context:"Peak wind speed forecast. Gusts to "+fmtSpeed(maxW.gustMph,u.speed)+".",icon:"💨",color:wc(maxW.windMph)},
+    ];
+  }
+
+  function Card(r,i) {
+    return <div key={i} style={{background:"rgba(255,255,255,0.03)",border:"1px solid "+(r.color||"#555")+"44",borderRadius:12,padding:"14px",display:"flex",flexDirection:"column",gap:5}}>
+      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:2}}>
+        <span style={{fontSize:28}}>{r.icon}</span>
+        <div><div style={{fontSize:11,fontWeight:"bold",color:"#e8dcc8",lineHeight:1.3}}>{r.title}</div><div style={{fontSize:9,color:"#555",marginTop:1}}>{r.location}</div></div>
+      </div>
+      <div style={{fontSize:20,fontWeight:"bold",color:r.color||"#fff",lineHeight:1}}>{r.value}</div>
+      <div style={{fontSize:9,color:"#666"}}>{r.date}</div>
+      <div style={{fontSize:11,color:"#7a6e5e",lineHeight:1.5}}>{r.context}</div>
+    </div>;
+  }
+
+  return (
+    <div>
+      <div style={{fontSize:11,letterSpacing:3,color:"#ff7700",textTransform:"uppercase",marginBottom:16}}>Weather Extremes</div>
+
+      {localExtremes.length>0&&(
+        <div style={{marginBottom:24}}>
+          <div style={{fontSize:11,color:"#ff9944",letterSpacing:2,marginBottom:10}}>YOUR LOCATION — FORECAST EXTREMES</div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(190px,1fr))",gap:8}}>
+            {localExtremes.map(function(r,i){return Card(r,i);})}
+          </div>
+        </div>
+      )}
+
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:8,marginBottom:12}}>
+        <div style={{fontSize:11,color:"#ff9944",letterSpacing:2}}>CURRENT WORLD RECORDS BEING BROKEN</div>
+        {!loaded&&<button onClick={loadExtremes} disabled={loading} style={{padding:"6px 14px",borderRadius:10,border:"1px solid rgba(255,119,0,0.4)",background:"rgba(255,119,0,0.12)",color:"#ffaa44",fontSize:11,cursor:loading?"wait":"pointer"}}>{loading?"Searching...":"Search Live Records"}</button>}
+        {loaded&&<button onClick={function(){setLoaded(false);setLiveRecords([]);setError("");}} style={{padding:"6px 14px",borderRadius:10,border:"1px solid rgba(255,255,255,0.12)",background:"rgba(255,255,255,0.04)",color:"#888",fontSize:11,cursor:"pointer"}}>Refresh</button>}
+      </div>
+
+      {!loaded&&!loading&&<div style={{textAlign:"center",padding:"28px",color:"#555",border:"1px dashed rgba(255,255,255,0.07)",borderRadius:12,marginBottom:16,fontSize:12}}>Click "Search Live Records" to fetch current world weather extremes via AI web search.</div>}
+      {loading&&<div style={{textAlign:"center",padding:"28px",color:"#666",fontSize:12}}>Searching the web for current world weather records...</div>}
+      {error&&<div style={{color:"#ff9944",fontSize:11,padding:"8px 12px",background:"rgba(255,119,0,0.07)",borderRadius:8,marginBottom:12}}>{error}</div>}
+
+      {loaded&&liveRecords.length>0&&(
+        <div style={{marginBottom:24}}>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(190px,1fr))",gap:8,marginBottom:6}}>
+            {liveRecords.map(function(r,i){return Card(r,i);})}
+          </div>
+          <div style={{fontSize:9,color:"#333",textAlign:"center"}}>Sourced via live web search · Verify with official meteorological services</div>
+        </div>
+      )}
+
+      <div style={{marginBottom:8}}>
+        <div style={{fontSize:11,color:"#ff9944",letterSpacing:2,marginBottom:10}}>ALL-TIME WORLD RECORDS</div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(190px,1fr))",gap:8}}>
+          {allTime.map(function(r,i){return Card(r,i);})}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Coming Soon placeholder ──────────────────────────────────────────────────
 function ComingSoon({ page }) {
   const item = NAV_ITEMS.find(function(n){ return n.id===page; });
@@ -1175,10 +1282,10 @@ function WeatherOverview({ forecastData, locationName, dateRange, units }) {
 
 // ─── Main App ─────────────────────────────────────────────────────────────────
 function App() {
-  const [forecastData, setForecastData] = useState(LONDON_DATA);
-  const [hourlyRaw,    setHourlyRaw]    = useState(null); // {times:[], temps:[], codes:[], windMph:[], gusts:[], rain:[], humidity:[], pressure:[], cloud:[], uv:[], dewpoint:[]}
-  const [locationName, setLocationName] = useState("London, England");
-  const [dateRange,    setDateRange]    = useState("25 May – 25 July 2026");
+  const [forecastData, setForecastData] = useState(LOADING_DATA);
+  const [hourlyRaw,    setHourlyRaw]    = useState(null);
+  const [locationName, setLocationName] = useState("Loading...");
+  const [dateRange,    setDateRange]    = useState("");
   const [searchText,   setSearchText]   = useState("");
   const [searching,    setSearching]    = useState(false);
   const [searchErr,    setSearchErr]    = useState("");
@@ -1186,58 +1293,53 @@ function App() {
   const [showSett,     setShowSett]     = useState(false);
   const [units,        setUnits]        = useState({ temp:"C", speed:"mph", rain:"mm", pressure:"mbar" });
 
-  async function doSearch() {
-    if(!searchText.trim()) return;
+  // Auto-load London on first render
+  useEffect(function() {
+    fetchLocation("London");
+  }, []);
+
+  async function fetchLocation(name) {
     setSearching(true); setSearchErr("");
     try {
-      const geoRes  = await fetch("https://geocoding-api.open-meteo.com/v1/search?name="+encodeURIComponent(searchText.trim())+"&count=1&language=en&format=json");
+      const geoRes  = await fetch("https://geocoding-api.open-meteo.com/v1/search?name="+encodeURIComponent(name)+"&count=1&language=en&format=json");
       const geoJson = await geoRes.json();
-      if(!geoJson.results||!geoJson.results.length){ setSearchErr("Location not found. Try a different name."); setSearching(false); return; }
+      if(!geoJson.results||!geoJson.results.length){ setSearchErr("Location not found."); setSearching(false); return; }
       const place = geoJson.results[0];
-
-      // Fetch both daily AND hourly in one request
-      const wRes  = await fetch(
+      const wRes = await fetch(
         "https://api.open-meteo.com/v1/forecast?latitude="+place.latitude+"&longitude="+place.longitude+
         "&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,precipitation_hours,windspeed_10m_max,windgusts_10m_max,relative_humidity_2m_mean,surface_pressure_mean,weathercode" +
         "&hourly=temperature_2m,weathercode,precipitation_probability,precipitation,windspeed_10m,windgusts_10m,relativehumidity_2m,surface_pressure,cloudcover,uv_index,dewpoint_2m,visibility" +
-        "&timezone=auto&forecast_days=16"
+        "&timezone=auto&forecast_days=13"
       );
       const wJson = await wRes.json();
       const days  = wJson.daily;
       const hrs   = wJson.hourly;
-
-      // Build daily forecast array
       const data  = days.time.map(function(t,i){
         const temp=Math.round(days.temperature_2m_max[i]);
         const windMph=Math.round((days.windspeed_10m_max[i]||0)*0.621371);
         const cond=condFromCode(days.weathercode[i]||0,temp);
         const dateStr=new Date(t+"T12:00:00").toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"});
-        return { date:dateStr, temp, low:Math.round(days.temperature_2m_min[i]), type:i<5?"confirmed":i<10?"near":"estimated", condition:cond, note:"Live forecast via Open-Meteo", wind:windMph<5?"very light":windMph<10?"light":windMph<20?"moderate":"fresh", windMph, gustMph:Math.round((days.windgusts_10m_max[i]||windMph*1.3)*0.621371), rain:days.precipitation_probability_max[i]||0, humidity:Math.round(days.relative_humidity_2m_mean[i]||55), pressure:Math.round(days.surface_pressure_mean[i]||1013), rainMm:parseFloat((days.precipitation_sum[i]||0).toFixed(1)), rainHours:Math.round(days.precipitation_hours[i]||0) };
+        return { date:dateStr, temp, low:Math.round(days.temperature_2m_min[i]), type:i<3?"confirmed":i<7?"near":"estimated", condition:cond, note:"Live forecast via Open-Meteo", wind:windMph<5?"very light":windMph<10?"light":windMph<20?"moderate":"fresh", windMph, gustMph:Math.round((days.windgusts_10m_max[i]||windMph*1.3)*0.621371), rain:days.precipitation_probability_max[i]||0, humidity:Math.round(days.relative_humidity_2m_mean[i]||55), pressure:Math.round(days.surface_pressure_mean[i]||1013), rainMm:parseFloat((days.precipitation_sum[i]||0).toFixed(1)), rainHours:Math.round(days.precipitation_hours[i]||0) };
       });
-
-      // Store raw hourly arrays for accurate conditions + graphs
       setHourlyRaw({
-        times:    hrs.time,
-        temps:    hrs.temperature_2m,
-        codes:    hrs.weathercode,
-        windMph:  hrs.windspeed_10m.map(function(v){ return Math.round((v||0)*0.621371); }),
-        gusts:    hrs.windgusts_10m.map(function(v){ return Math.round((v||0)*0.621371); }),
-        rain:     hrs.precipitation_probability,
-        rainMm:   hrs.precipitation,
-        humidity: hrs.relativehumidity_2m,
-        pressure: hrs.surface_pressure,
-        cloud:    hrs.cloudcover,
-        uv:       hrs.uv_index,
-        dewpoint: hrs.dewpoint_2m,
-        vis:      hrs.visibility,
+        times:hrs.time, temps:hrs.temperature_2m, codes:hrs.weathercode,
+        windMph:hrs.windspeed_10m.map(function(v){return Math.round((v||0)*0.621371);}),
+        gusts:hrs.windgusts_10m.map(function(v){return Math.round((v||0)*0.621371);}),
+        rain:hrs.precipitation_probability, rainMm:hrs.precipitation,
+        humidity:hrs.relativehumidity_2m, pressure:hrs.surface_pressure,
+        cloud:hrs.cloudcover, uv:hrs.uv_index, dewpoint:hrs.dewpoint_2m, vis:hrs.visibility,
       });
-
       setForecastData(data);
-      setLocationName(place.name+(place.country?", "+place.country:""));
+      setLocationName(place.name+(place.admin1?", "+place.admin1:"")+(place.country_code?", "+place.country_code:""));
       const first=new Date(days.time[0]+"T12:00:00"), last=new Date(days.time[days.time.length-1]+"T12:00:00");
       setDateRange(first.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+" – "+last.toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"}));
     } catch(e){ setSearchErr("Could not load forecast. Please try again."); }
     setSearching(false);
+  }
+
+  async function doSearch() {
+    if(!searchText.trim()) return;
+    await fetchLocation(searchText.trim());
   }
 
   function handleKey(e){ if(e.key==="Enter") doSearch(); }
@@ -1250,44 +1352,50 @@ function App() {
       {showSett && <SettingsPanel units={units} setUnits={setUnits} onClose={function(){setShowSett(false);}} />}
       <div style={wrapSty}>
 
-        {/* ── Top bar: nav + search + settings ── */}
+        {/* ── Top bar ── */}
         <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:20,flexWrap:"wrap"}}>
           <NavDropdown activePage={activePage} setActivePage={setActivePage} />
-          <input
-            value={searchText}
-            onChange={function(e){setSearchText(e.target.value);}}
-            onKeyDown={handleKey}
-            placeholder="Search any location..."
-            style={{flex:1,minWidth:120,padding:"10px 12px",borderRadius:12,border:"1px solid rgba(255,255,255,0.15)",background:"rgba(255,255,255,0.05)",color:"#fff",fontSize:13,outline:"none"}}
-          />
-          <button onClick={doSearch} disabled={searching} style={{padding:"10px 14px",borderRadius:12,border:"none",background:searching?"#555":"#ff7700",color:"#fff",fontSize:13,fontWeight:"bold",cursor:searching?"wait":"pointer",whiteSpace:"nowrap",flexShrink:0}}>{searching?"...":"Search"}</button>
+          <input value={searchText} onChange={function(e){setSearchText(e.target.value);}} onKeyDown={handleKey} placeholder="Search any location..." style={{flex:1,minWidth:120,padding:"10px 12px",borderRadius:12,border:"1px solid rgba(255,255,255,0.15)",background:"rgba(255,255,255,0.05)",color:"#fff",fontSize:13,outline:"none"}}/>
+          <button onClick={doSearch} disabled={searching} style={{padding:"10px 14px",borderRadius:12,border:"none",background:searching?"#555":"#ff7700",color:"#fff",fontSize:13,fontWeight:"bold",cursor:searching?"wait":"pointer",whiteSpace:"nowrap",flexShrink:0}}>{searching?"Loading...":"Search"}</button>
           <button onClick={function(){setShowSett(true);}} style={{padding:"10px 12px",borderRadius:12,border:"1px solid rgba(255,255,255,0.15)",background:"rgba(255,255,255,0.05)",color:"#aaa",fontSize:13,cursor:"pointer",flexShrink:0}}>Settings</button>
         </div>
 
         {searchErr && <div style={{color:"#ff6666",fontSize:12,marginBottom:12,textAlign:"center"}}>{searchErr}</div>}
 
-        {/* ── Page header ── */}
-        <div style={{textAlign:"center",marginBottom:24}}>
-          <div style={{fontSize:11,letterSpacing:6,color:"#ff7700",textTransform:"uppercase",marginBottom:8}}>Forecast · {locationName}</div>
-          <h1 style={{fontSize:"clamp(20px,4vw,36px)",fontWeight:"normal",margin:"0 0 4px",color:"#fff",lineHeight:1.1}}>{dateRange}</h1>
-          <div style={{fontSize:12,color:"#9a8c7a",marginBottom:12}}>Daily maxima · Tap any card or bar for details</div>
-          <div style={{display:"flex",gap:16,justifyContent:"center",flexWrap:"wrap",fontSize:11,color:"#9a8c7a"}}>
-            {[{col:"#ff7700",label:"Confirmed",solid:true},{col:"#4a9fd4",label:"Near-term",solid:false},{col:"#555",label:"Estimated",solid:false}].map(function(l,i){
-              return <span key={i} style={{display:"flex",alignItems:"center",gap:5}}><span style={{width:9,height:9,borderRadius:l.solid?2:"50%",background:l.col,display:"inline-block"}}/>{l.label}</span>;
-            })}
+        {/* Loading state */}
+        {forecastData.length === 0 && !searchErr && (
+          <div style={{textAlign:"center",padding:"60px 20px",color:"#555"}}>
+            <div style={{fontSize:36,marginBottom:12}}>🌍</div>
+            <div style={{fontSize:14,color:"#777"}}>Loading forecast for London...</div>
           </div>
-        </div>
+        )}
 
-        {/* ── Page content ── */}
-        {activePage==="overview" && <WeatherOverview forecastData={forecastData} locationName={locationName} dateRange={dateRange} units={units} />}
-        {activePage==="ten"      && <TenDayForecast  forecastData={forecastData} units={units} />}
-        {activePage==="hourly"   && <HourlyForecast  forecastData={forecastData} hourlyRaw={hourlyRaw} units={units} />}
-        {activePage==="graphs"   && <WeatherGraphs   forecastData={forecastData} hourlyRaw={hourlyRaw} units={units} />}
-        {activePage!=="overview" && activePage!=="ten" && activePage!=="hourly" && activePage!=="graphs" && <ComingSoon page={activePage} />}
+        {forecastData.length > 0 && (
+          <div>
+            {/* Page header */}
+            <div style={{textAlign:"center",marginBottom:24}}>
+              <div style={{fontSize:11,letterSpacing:6,color:"#ff7700",textTransform:"uppercase",marginBottom:8}}>Forecast · {locationName}</div>
+              <h1 style={{fontSize:"clamp(20px,4vw,36px)",fontWeight:"normal",margin:"0 0 4px",color:"#fff",lineHeight:1.1}}>{dateRange}</h1>
+              <div style={{fontSize:12,color:"#9a8c7a",marginBottom:12}}>Daily maxima · Tap any card or bar for details</div>
+              <div style={{display:"flex",gap:16,justifyContent:"center",flexWrap:"wrap",fontSize:11,color:"#9a8c7a"}}>
+                {[{col:"#ff7700",label:"Confirmed",solid:true},{col:"#4a9fd4",label:"Near-term",solid:false},{col:"#555",label:"Estimated",solid:false}].map(function(l,i){
+                  return <span key={i} style={{display:"flex",alignItems:"center",gap:5}}><span style={{width:9,height:9,borderRadius:l.solid?2:"50%",background:l.col,display:"inline-block"}}/>{l.label}</span>;
+                })}
+              </div>
+            </div>
+
+            {/* Page content */}
+            {activePage==="overview" && <WeatherOverview forecastData={forecastData} locationName={locationName} dateRange={dateRange} units={units} />}
+            {activePage==="ten"      && <TenDayForecast  forecastData={forecastData} units={units} />}
+            {activePage==="hourly"   && <HourlyForecast  forecastData={forecastData} hourlyRaw={hourlyRaw} units={units} />}
+            {activePage==="graphs"   && <WeatherGraphs   forecastData={forecastData} hourlyRaw={hourlyRaw} units={units} />}
+            {activePage==="radar"    && <MapRadar        locationName={locationName} forecastData={forecastData} />}
+            {activePage==="extremes" && <WeatherExtremes forecastData={forecastData} locationName={locationName} units={units} />}
+          </div>
+        )}
 
         <div style={{textAlign:"center",marginTop:18,fontSize:11,color:"#4a4a5a",lineHeight:1.7}}>
-          Estimated long-range forecast for illustrative purposes only.<br/>
-          Live search powered by Open-Meteo · London data: Met Office informed estimates
+          Live forecast powered by Open-Meteo · {new Date().getFullYear()}
         </div>
       </div>
     </div>
