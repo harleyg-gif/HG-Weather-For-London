@@ -5,7 +5,7 @@ An interactive extended weather forecast for any location covering 16 days. Feat
 ## Features
 
 ✨ **Interactive Forecast**
-- 62-day extended forecast with hourly breakdowns
+- 62 day extended forecast with hourly breakdowns
 - 4 interactive graph views (Temperature, Rain, Humidity, Wind)
 - Click any day or bar for detailed weather information
 
