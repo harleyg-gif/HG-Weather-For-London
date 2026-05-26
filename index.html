@@ -265,96 +265,96 @@ function NavDropdown({ activePage, setActivePage }) {
   );
 }
 
-// ─── Hourly data generator (from daily data) ─────────────────────────────────
-function buildHourlyData(dailyData) {
-  // Takes up to 3 days of daily data and creates plausible hourly breakdowns
-  const hours = [];
-  const days = dailyData.slice(0, 3);
-  days.forEach(function(d) {
-    for (var h = 0; h < 24; h++) {
-      // Temperature curve: low at 05:00, peak at 15:00
-      var progress = Math.sin(((h - 15) / 24) * Math.PI * 2 + Math.PI * 0.5);
-      progress = Math.max(0, Math.min(1, (progress + 1) / 2));
-      var tempCurve = d.low + (d.temp - d.low) * Math.pow(progress, 1.4);
-      var temp = Math.round(tempCurve * 10) / 10;
+// ─── Hourly data — uses real API data if available, falls back to generated ───
+function buildHourlyData(dailyData, hourlyRaw, dayIndex) {
+  // If we have real hourly data from Open-Meteo, use it
+  if (hourlyRaw && hourlyRaw.times && hourlyRaw.times.length > 0) {
+    var dayDate = null;
+    // Find the date string for this day index by looking at the data
+    // hourlyRaw.times are like "2026-05-25T00:00"
+    // Extract unique dates
+    var seen = {};
+    var dates = [];
+    hourlyRaw.times.forEach(function(t) {
+      var d = t.split("T")[0];
+      if (!seen[d]) { seen[d] = true; dates.push(d); }
+    });
+    var targetDate = dates[dayIndex];
+    if (!targetDate) return [];
 
-      // Wind: slightly higher in afternoon
-      var windFactor = h >= 11 && h <= 18 ? 1.15 : h < 6 || h > 21 ? 0.75 : 1.0;
-      var windMph = Math.round(d.windMph * windFactor);
-      var gustMph = Math.round(d.gustMph * windFactor);
-
-      // Humidity: higher at night, lower midday
-      var humCurve = d.humidity + (h < 6 || h > 22 ? 12 : h >= 12 && h <= 16 ? -10 : 0);
-      var humidity = Math.min(99, Math.max(10, Math.round(humCurve)));
-
-      // Rain: distribute across rainy hours
-      var rainHourly = 0;
-      var rainChance = d.rain;
-      if (d.rainHours > 0) {
-        // Concentrate rain in morning or afternoon depending on condition
-        var rainPeak = d.condition.includes("⛈") ? (h >= 14 && h <= 18) : (h >= 8 && h <= 14);
-        if (rainPeak) rainChance = Math.min(99, d.rain + 20);
-        rainHourly = parseFloat((d.rainMm * (rainPeak ? 0.12 : 0.02)).toFixed(1));
-      }
-
-      // Pressure: slight dip midday on hot days
-      var presDip = d.temp > 28 && h >= 12 && h <= 16 ? -1 : 0;
-      var pressure = Math.round(d.pressure + presDip);
-
-      // Condition: vary through the day
-      var cond = d.condition;
-      if (h >= 0 && h < 6)   cond = d.condition.includes("⛈") ? "🌧" : d.condition.includes("🌧") ? "🌧" : "🌙";
-      if (h >= 6 && h < 9)   cond = d.condition.includes("⛈") ? "⛅" : d.condition;
-      if (h >= 20)           cond = d.condition.includes("⛈") ? "⛈️" : d.condition.includes("🌧") ? "🌧" : "🌙";
-
-      // UV index: 0 at night, peaks at solar noon
-      var uv = 0;
-      if (h >= 6 && h <= 20) {
-        var solarProg = 1 - Math.abs((h - 13) / 7);
-        var maxUv = d.temp >= 35 ? 9 : d.temp >= 30 ? 8 : d.temp >= 25 ? 7 : d.temp >= 20 ? 5 : 4;
-        uv = d.condition.includes("☁") ? Math.round(maxUv * 0.3 * solarProg) : Math.round(maxUv * solarProg * solarProg);
-      }
-
-      // Visibility: lower when humid/rainy
-      var vis = d.humidity > 80 ? "Poor (2-4km)" : d.humidity > 65 ? "Moderate (5-10km)" : d.humidity > 45 ? "Good (10-20km)" : "Excellent (20km+)";
-
-      // Dew point
-      var dewPoint = Math.round(temp - ((100 - humidity) / 5));
-
-      // Wind direction (stable through day, varies by day)
+    var hours = [];
+    hourlyRaw.times.forEach(function(t, i) {
+      if (t.split("T")[0] !== targetDate) return;
+      var h = parseInt(t.split("T")[1].split(":")[0]);
+      var temp = hourlyRaw.temps[i];
+      var code = hourlyRaw.codes[i] || 0;
+      var cond = condFromCode(code, Math.round(temp));
+      var isNight = h < 6 || h >= 21;
+      if (isNight && cond === "☀️") cond = "🌙";
+      if (isNight && cond === "🌡️") cond = "🌙";
+      var vis = hourlyRaw.vis ? hourlyRaw.vis[i] : null;
+      var visStr = vis === null ? "Unknown" : vis >= 20000 ? "Excellent (20km+)" : vis >= 10000 ? "Good (10-20km)" : vis >= 5000 ? "Moderate (5-10km)" : "Poor (<5km)";
+      var dewp = hourlyRaw.dewpoint ? Math.round(hourlyRaw.dewpoint[i]) : Math.round(temp - ((100-(hourlyRaw.humidity[i]||55))/5));
       var dirs = ["N","NE","NE","E","SE","SE","S","SW","SW","W","NW","NW"];
-      var windDir = dirs[Math.floor(days.indexOf(d) * 4 + h / 6) % 12];
-
-      // Feels like
-      var feelsLike = Math.round(temp + (windMph < 5 ? 1 : windMph < 10 ? 0 : windMph < 15 ? -1 : -3) + (humidity <= 30 ? 0 : humidity <= 50 ? 2 : humidity <= 70 ? 4 : 6));
-
-      // Cloud cover %
-      var cloud = cond.includes("☀") || cond.includes("🌡") ? Math.round(Math.random() * 15) :
-                  cond.includes("🌤") ? Math.round(20 + Math.random() * 25) :
-                  cond.includes("⛅") ? Math.round(40 + Math.random() * 20) :
-                  cond.includes("☁") ? Math.round(75 + Math.random() * 20) : 90;
-
+      var windDir = dirs[Math.floor((dayIndex*4 + h/6)) % 12];
+      var mph = hourlyRaw.windMph[i] || 0;
+      var gust = hourlyRaw.gusts[i] || Math.round(mph*1.3);
+      var hum = Math.round(hourlyRaw.humidity[i] || 55);
+      var pres = Math.round(hourlyRaw.pressure[i] || 1013);
+      var cloud = Math.round(hourlyRaw.cloud[i] || 0);
+      var uv = Math.round(hourlyRaw.uv[i] || 0);
+      var rainChance = Math.round(hourlyRaw.rain[i] || 0);
+      var rainMm = parseFloat((hourlyRaw.rainMm[i] || 0).toFixed(1));
+      var feelsLike = Math.round(temp + condBonus(cond,temp,false) + humBonus(hum) + windBonus(mph));
       hours.push({
-        day: d.date,
-        hour: h,
-        timeStr: (h < 10 ? "0" : "") + h + ":00",
-        temp: temp,
-        feelsLike: feelsLike,
-        condition: cond,
-        windMph: windMph,
-        gustMph: gustMph,
-        windDir: windDir,
-        humidity: humidity,
-        dewPoint: dewPoint,
-        pressure: pressure,
-        rainChance: Math.min(99, Math.round(rainChance)),
-        rainMm: rainHourly,
-        uv: uv,
-        cloud: cloud,
-        visibility: vis,
+        day: targetDate, hour: h,
+        timeStr: (h<10?"0":"")+h+":00",
+        temp: Math.round(temp*10)/10,
+        feelsLike, condition: cond,
+        windMph: mph, gustMph: gust, windDir,
+        humidity: hum, dewPoint: dewp,
+        pressure: pres, rainChance, rainMm,
+        uv, cloud, visibility: visStr,
       });
+    });
+    return hours;
+  }
+
+  // Fallback: generate from daily data
+  var days = dailyData.slice(dayIndex, dayIndex + 1);
+  if (!days.length) return [];
+  var d = days[0];
+  var hours = [];
+  for (var h = 0; h < 24; h++) {
+    var progress = Math.sin(((h - 15) / 24) * Math.PI * 2 + Math.PI * 0.5);
+    progress = Math.max(0, Math.min(1, (progress + 1) / 2));
+    var temp = Math.round((d.low + (d.temp - d.low) * Math.pow(progress, 1.4)) * 10) / 10;
+    var isNight = h < 6 || h >= 21;
+    var windFactor = h>=11&&h<=18?1.15:h<6||h>21?0.75:1.0;
+    var windMph = Math.round(d.windMph * windFactor);
+    var gustMph = Math.round(d.gustMph * windFactor);
+    var hum = Math.min(99, Math.max(10, Math.round(d.humidity + (h<6||h>22?12:h>=12&&h<=16?-10:0))));
+    var rainChance = d.rain;
+    var rainHourly = 0;
+    if (d.rainHours > 0) {
+      var rainPeak = d.condition.includes("⛈")?(h>=14&&h<=18):(h>=8&&h<=14);
+      if (rainPeak) rainChance = Math.min(99, d.rain + 20);
+      rainHourly = parseFloat((d.rainMm * (rainPeak?0.12:0.02)).toFixed(1));
     }
-  });
+    var pres = Math.round(d.pressure + (d.temp>28&&h>=12&&h<=16?-1:0));
+    var cond = d.condition;
+    if (isNight) cond = d.condition.includes("⛈")?"🌧":d.condition.includes("🌧")?"🌧":"🌙";
+    var solarProg = h>=6&&h<=20?(1-Math.abs((h-13)/7)):0;
+    var maxUv = d.temp>=35?9:d.temp>=30?8:d.temp>=25?7:d.temp>=20?5:4;
+    var uv = d.condition.includes("☁")?Math.round(maxUv*0.3*solarProg):Math.round(maxUv*solarProg*solarProg);
+    var cloud = cond.includes("☀")||cond.includes("🌡")?Math.round(Math.random()*15):cond.includes("🌤")?Math.round(20+Math.random()*25):cond.includes("⛅")?Math.round(40+Math.random()*20):cond.includes("☁")?Math.round(75+Math.random()*20):90;
+    var vis = hum>80?"Poor (<5km)":hum>65?"Moderate (5-10km)":hum>45?"Good (10-20km)":"Excellent (20km+)";
+    var dewPoint = Math.round(temp-((100-hum)/5));
+    var dirs = ["N","NE","NE","E","SE","SE","S","SW","SW","W","NW","NW"];
+    var windDir = dirs[Math.floor((dayIndex*4+h/6))%12];
+    var feelsLike = Math.round(temp + condBonus(cond,temp,false) + humBonus(hum) + windBonus(windMph));
+    hours.push({ day:d.date, hour:h, timeStr:(h<10?"0":"")+h+":00", temp, feelsLike, condition:cond, windMph, gustMph, windDir, humidity:hum, dewPoint, pressure:pres, rainChance:Math.min(99,Math.round(rainChance)), rainMm:rainHourly, uv, cloud, visibility:vis });
+  }
   return hours;
 }
 
@@ -368,7 +368,7 @@ function uvLabel(uv) {
 }
 
 // ─── Hourly Forecast view ─────────────────────────────────────────────────────
-function HourlyForecast({ forecastData, units }) {
+function HourlyForecast({ forecastData, hourlyRaw, units }) {
   const u = units;
   const [selDay,  setSelDay]  = useState(0);
   const [selHour, setSelHour] = useState(null);
@@ -379,11 +379,7 @@ function HourlyForecast({ forecastData, units }) {
     setSelHour(null);
   }, [forecastData]);
 
-  // Build hourly data for selected day + 2 neighbours
-  var dayStart = Math.max(0, selDay);
-  var hourlyAll = buildHourlyData(forecastData.slice(dayStart, dayStart + 3));
-  // Only show hours for the selected day (first 24)
-  var hours = hourlyAll.slice(0, 24);
+  var hours = buildHourlyData(forecastData, hourlyRaw, selDay);
 
   var day = forecastData[selDay] || forecastData[0];
 
@@ -589,6 +585,285 @@ function HourlyForecast({ forecastData, units }) {
             </div>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+// ─── Weather Graphs ───────────────────────────────────────────────────────────
+function WeatherGraphs({ forecastData, hourlyRaw, units }) {
+  const u = units;
+  const [activeGraph, setActiveGraph] = useState("temp");
+  const [hoveredIdx,  setHoveredIdx]  = useState(null);
+  const [useHourly,   setUseHourly]   = useState(false);
+
+  var hasHourly = hourlyRaw && hourlyRaw.times && hourlyRaw.times.length > 0;
+
+  // Build dataset for current graph type
+  var points = [];
+  if (useHourly && hasHourly) {
+    var sliceLen = Math.min(hourlyRaw.times.length, 16*24);
+    for (var i = 0; i < sliceLen; i++) {
+      var t = hourlyRaw.times[i];
+      var label = t.split("T")[1].slice(0,5) + " " + t.split("T")[0].slice(5);
+      var val = activeGraph==="temp"    ? Math.round(hourlyRaw.temps[i])
+              : activeGraph==="rain"    ? Math.round(hourlyRaw.rain[i]||0)
+              : activeGraph==="wind"    ? Math.round(hourlyRaw.windMph[i]||0)
+              : activeGraph==="gust"    ? Math.round(hourlyRaw.gusts[i]||0)
+              : activeGraph==="hum"     ? Math.round(hourlyRaw.humidity[i]||0)
+              : activeGraph==="pressure"? Math.round(hourlyRaw.pressure[i]||1013)
+              : activeGraph==="cloud"   ? Math.round(hourlyRaw.cloud[i]||0)
+              : activeGraph==="uv"      ? Math.round(hourlyRaw.uv[i]||0)
+              : 0;
+      points.push({ label, val, time: t });
+    }
+  } else {
+    forecastData.forEach(function(d) {
+      var val = activeGraph==="temp"    ? d.temp
+              : activeGraph==="rain"    ? d.rain
+              : activeGraph==="wind"    ? d.windMph
+              : activeGraph==="gust"    ? d.gustMph
+              : activeGraph==="hum"     ? d.humidity
+              : activeGraph==="pressure"? d.pressure
+              : activeGraph==="cloud"   ? Math.round(d.humidity * 0.7)
+              : activeGraph==="uv"      ? (d.temp>=30?8:d.temp>=25?6:d.temp>=20?4:2)
+              : 0;
+      points.push({ label: d.date, val, condition: d.condition });
+    });
+  }
+
+  var vals = points.map(function(p){ return p.val; });
+  var maxV = Math.max(...vals);
+  var minV = Math.min(...vals);
+  var range = Math.max(maxV - minV, 1);
+
+  // Find peaks (local maxima) and troughs (local minima)
+  var peaks = [], troughs = [];
+  for (var pi = 1; pi < points.length - 1; pi++) {
+    var prev = points[pi-1].val, cur = points[pi].val, next = points[pi+1].val;
+    if (cur > prev && cur > next && cur > (minV + range*0.6)) peaks.push(pi);
+    if (cur < prev && cur < next && cur < (minV + range*0.4)) troughs.push(pi);
+  }
+
+  // Colour for a value
+  function colForVal(val) {
+    if (activeGraph==="temp")     return tc(val);
+    if (activeGraph==="rain")     return rc(val);
+    if (activeGraph==="wind"||activeGraph==="gust") return wc(val);
+    if (activeGraph==="hum")      return hc(val);
+    if (activeGraph==="pressure") return pc(val);
+    if (activeGraph==="uv")       return uvLabel(val).color;
+    return "#88aacc";
+  }
+
+  function fmtVal(val) {
+    if (activeGraph==="temp")     return fmtTemp(val, u.temp);
+    if (activeGraph==="rain"||activeGraph==="hum"||activeGraph==="cloud") return val+"%";
+    if (activeGraph==="wind"||activeGraph==="gust") return fmtSpeed(val, u.speed);
+    if (activeGraph==="pressure") return fmtPres(val, u.pressure);
+    if (activeGraph==="uv")       return val+" UV";
+    return val;
+  }
+
+  var graphTabs = [
+    {id:"temp",     label:"Temperature",  icon:"🌡"},
+    {id:"rain",     label:"Rain Chance",  icon:"🌧"},
+    {id:"wind",     label:"Wind Speed",   icon:"💨"},
+    {id:"gust",     label:"Gusts",        icon:"🌬"},
+    {id:"hum",      label:"Humidity",     icon:"💧"},
+    {id:"pressure", label:"Pressure",     icon:"📊"},
+    {id:"cloud",    label:"Cloud Cover",  icon:"☁️"},
+    {id:"uv",       label:"UV Index",     icon:"☀️"},
+  ];
+
+  var svgW = 900, svgH = 220, padL = 44, padR = 16, padT = 32, padB = 28;
+  var chartW = svgW - padL - padR;
+  var chartH = svgH - padT - padB;
+  var step = chartW / Math.max(points.length - 1, 1);
+
+  function xOf(i) { return padL + i * step; }
+  function yOf(v) { return padT + chartH - ((v - minV) / range) * chartH; }
+
+  // Build SVG polyline path
+  var pathD = points.map(function(p,i){ return (i===0?"M":"L")+xOf(i).toFixed(1)+","+yOf(p.val).toFixed(1); }).join(" ");
+  var areaD = pathD + " L"+xOf(points.length-1).toFixed(1)+","+(padT+chartH)+" L"+padL+","+(padT+chartH)+" Z";
+
+  // Y-axis labels
+  var ySteps = 4;
+  var yLabels = [];
+  for (var yi = 0; yi <= ySteps; yi++) {
+    var yVal = minV + (range * yi / ySteps);
+    yLabels.push({ y: yOf(yVal), val: Math.round(yVal) });
+  }
+
+  // X-axis: show every N labels to avoid crowding
+  var xEvery = useHourly ? Math.ceil(points.length / 14) : 1;
+
+  // Condition strip for daily mode
+  var conditionStrip = !useHourly && forecastData.slice(0, points.length);
+
+  return (
+    <div>
+      <div style={{fontSize:11,letterSpacing:3,color:"#ff7700",textTransform:"uppercase",marginBottom:16}}>Weather Graphs</div>
+
+      {/* Graph type tabs */}
+      <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:14}}>
+        {graphTabs.map(function(t) {
+          var on = activeGraph===t.id;
+          return (
+            <button key={t.id} onClick={function(){ setActiveGraph(t.id); setHoveredIdx(null); }} style={{
+              padding:"5px 10px", borderRadius:20, border:"1px solid",
+              borderColor: on?"#ff7700":"rgba(255,255,255,0.12)",
+              background: on?"rgba(255,119,0,0.18)":"rgba(255,255,255,0.03)",
+              color: on?"#ffaa44":"#888", fontSize:11, cursor:"pointer"
+            }}>{t.icon} {t.label}</button>
+          );
+        })}
+      </div>
+
+      {/* Hourly / Daily toggle */}
+      <div style={{display:"flex",gap:8,marginBottom:14,alignItems:"center"}}>
+        <button onClick={function(){setUseHourly(false); setHoveredIdx(null);}} style={{padding:"4px 12px",borderRadius:10,border:"1px solid",borderColor:!useHourly?"#ff7700":"rgba(255,255,255,0.12)",background:!useHourly?"rgba(255,119,0,0.18)":"rgba(255,255,255,0.03)",color:!useHourly?"#ffaa44":"#888",fontSize:11,cursor:"pointer"}}>Daily (14 days)</button>
+        <button onClick={function(){setUseHourly(true); setHoveredIdx(null);}} style={{padding:"4px 12px",borderRadius:10,border:"1px solid",borderColor:useHourly?"#ff7700":"rgba(255,255,255,0.12)",background:useHourly?"rgba(255,119,0,0.18)":"rgba(255,255,255,0.03)",color:useHourly?"#ffaa44":"#888",fontSize:11,cursor:"pointer",opacity:hasHourly?1:0.4}}>
+          Hourly {!hasHourly?"(search a location)":""}
+        </button>
+      </div>
+
+      {/* SVG chart */}
+      <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:14,padding:"10px 4px 6px",marginBottom:16,overflowX:"auto"}}>
+        <svg viewBox={"0 0 "+svgW+" "+svgH} style={{width:"100%",minWidth:320,height:"auto",display:"block"}}
+          onMouseLeave={function(){setHoveredIdx(null);}}>
+
+          {/* Grid lines */}
+          {yLabels.map(function(yl,i){
+            return (
+              <g key={i}>
+                <line x1={padL} y1={yl.y} x2={svgW-padR} y2={yl.y} stroke="rgba(255,255,255,0.06)" strokeWidth="1"/>
+                <text x={padL-4} y={yl.y+4} textAnchor="end" fontSize="9" fill="#555">{fmtVal(yl.val)}</text>
+              </g>
+            );
+          })}
+
+          {/* Area fill */}
+          <defs>
+            <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor={colForVal(maxV)} stopOpacity="0.3"/>
+              <stop offset="100%" stopColor={colForVal(maxV)} stopOpacity="0.02"/>
+            </linearGradient>
+          </defs>
+          <path d={areaD} fill="url(#areaGrad)"/>
+
+          {/* Line */}
+          <path d={pathD} fill="none" stroke={colForVal(maxV)} strokeWidth="2" strokeLinejoin="round"/>
+
+          {/* Peak markers */}
+          {peaks.map(function(pi){
+            return (
+              <g key={"pk"+pi}>
+                <circle cx={xOf(pi)} cy={yOf(points[pi].val)} r="4" fill={colForVal(points[pi].val)} opacity="0.9"/>
+                <text x={xOf(pi)} y={yOf(points[pi].val)-8} textAnchor="middle" fontSize="9" fill={colForVal(points[pi].val)} fontWeight="bold">{fmtVal(points[pi].val)}</text>
+                <text x={xOf(pi)} y={yOf(points[pi].val)-18} textAnchor="middle" fontSize="8" fill="#888">▲</text>
+              </g>
+            );
+          })}
+
+          {/* Trough markers */}
+          {troughs.map(function(ti){
+            return (
+              <g key={"tr"+ti}>
+                <circle cx={xOf(ti)} cy={yOf(points[ti].val)} r="3" fill="#4a9fd4" opacity="0.8"/>
+                <text x={xOf(ti)} y={yOf(points[ti].val)+16} textAnchor="middle" fontSize="9" fill="#4a9fd4">{fmtVal(points[ti].val)}</text>
+                <text x={xOf(ti)} y={yOf(points[ti].val)+26} textAnchor="middle" fontSize="8" fill="#4a9fd4">▼</text>
+              </g>
+            );
+          })}
+
+          {/* Hover line + dot */}
+          {hoveredIdx!==null && (
+            <g>
+              <line x1={xOf(hoveredIdx)} y1={padT} x2={xOf(hoveredIdx)} y2={padT+chartH} stroke="rgba(255,255,255,0.2)" strokeWidth="1" strokeDasharray="4,3"/>
+              <circle cx={xOf(hoveredIdx)} cy={yOf(points[hoveredIdx].val)} r="5" fill={colForVal(points[hoveredIdx].val)} stroke="#fff" strokeWidth="1.5"/>
+            </g>
+          )}
+
+          {/* Invisible hover capture rects */}
+          {points.map(function(p,i){
+            return <rect key={i} x={xOf(i)-step/2} y={padT} width={step} height={chartH} fill="transparent" onMouseEnter={function(){setHoveredIdx(i);}} onClick={function(){setHoveredIdx(hoveredIdx===i?null:i);}} style={{cursor:"crosshair"}}/>;
+          })}
+
+          {/* X-axis labels */}
+          {points.map(function(p,i){
+            if (i % xEvery !== 0) return null;
+            var lbl = useHourly ? p.label.split(" ")[0] : p.label.split(" ").slice(0,2).join(" ");
+            return <text key={i} x={xOf(i)} y={svgH-4} textAnchor="middle" fontSize="8" fill="#555" transform={"rotate(-30,"+xOf(i)+","+(svgH-4)+")"}>{lbl}</text>;
+          })}
+        </svg>
+
+        {/* Hover tooltip */}
+        {hoveredIdx!==null && (
+          <div style={{textAlign:"center",padding:"6px 0 2px",fontSize:12,color:"#ccc"}}>
+            <span style={{color:"#888"}}>{points[hoveredIdx].label}</span>
+            <span style={{color:colForVal(points[hoveredIdx].val),fontWeight:"bold",marginLeft:10,fontSize:16}}>{fmtVal(points[hoveredIdx].val)}</span>
+            {!useHourly && points[hoveredIdx].condition && <span style={{marginLeft:8,fontSize:18}}>{points[hoveredIdx].condition}</span>}
+          </div>
+        )}
+      </div>
+
+      {/* 14-day condition strip */}
+      <div style={{background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:12,padding:"12px 14px",marginBottom:16}}>
+        <div style={{fontSize:11,color:"#888",marginBottom:10,letterSpacing:2,textTransform:"uppercase"}}>Conditions — Next 14 Days</div>
+        <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+          {forecastData.slice(0,14).map(function(d,i){
+            var isC=d.type==="confirmed", isN=d.type==="near";
+            var col = tc(d.temp);
+            return (
+              <div key={i} style={{
+                display:"flex",flexDirection:"column",alignItems:"center",gap:3,
+                padding:"8px 6px",borderRadius:10,minWidth:46,flex:"1 1 46px",
+                background: isC?"rgba(255,119,0,0.1)":isN?"rgba(74,159,212,0.07)":"rgba(255,255,255,0.02)",
+                border:"1px solid "+(isC?col+"44":isN?col+"22":"rgba(255,255,255,0.06)")
+              }}>
+                <div style={{fontSize:9,color:"#666",textAlign:"center"}}>{d.date.split(" ").slice(0,2).join(" ")}</div>
+                <div style={{fontSize:20}}>{d.condition}</div>
+                <div style={{fontSize:12,fontWeight:"bold",color:col}}>{fmtTemp(d.temp,u.temp)}</div>
+                <div style={{fontSize:10,color:"#5a7a5a"}}>{fmtTemp(d.low,u.temp)}</div>
+                {d.rain>=40&&<div style={{fontSize:9,color:rc(d.rain)}}>{d.rain}%</div>}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Stats summary */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:8}}>
+        {(function(){
+          var temps = forecastData.map(function(d){return d.temp;});
+          var lows  = forecastData.map(function(d){return d.low;});
+          var maxTemp = Math.max(...temps), minTemp = Math.min(...temps);
+          var maxLow  = Math.max(...lows),  minLow  = Math.min(...lows);
+          var avgTemp = Math.round(temps.reduce(function(a,b){return a+b;},0)/temps.length);
+          var rainyDays = forecastData.filter(function(d){return d.rain>=50;}).length;
+          var sunnyDays = forecastData.filter(function(d){return d.condition.includes("☀")||d.condition.includes("🌡")||d.condition.includes("🌤");}).length;
+          var totalRain = forecastData.reduce(function(a,d){return a+d.rainMm;},0);
+          var stats = [
+            {icon:"🔥",label:"Peak High",  val:fmtTemp(maxTemp,u.temp), col:tc(maxTemp)},
+            {icon:"❄️",label:"Lowest High", val:fmtTemp(minTemp,u.temp), col:tc(minTemp)},
+            {icon:"📊",label:"Avg High",   val:fmtTemp(avgTemp,u.temp), col:tc(avgTemp)},
+            {icon:"🌙",label:"Warmest Low", val:fmtTemp(maxLow,u.temp),  col:tc(maxLow)},
+            {icon:"🌧",label:"Rainy Days",  val:rainyDays+" days",       col:"#66aaff"},
+            {icon:"☀️",label:"Sunny Days",  val:sunnyDays+" days",       col:"#ffcc00"},
+            {icon:"💦",label:"Total Rain",  val:fmtRain(totalRain,u.rain),col:"#88ccff"},
+          ];
+          return stats.map(function(s,i){
+            return (
+              <div key={i} style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:10,padding:"10px 12px"}}>
+                <div style={{fontSize:16,marginBottom:4}}>{s.icon}</div>
+                <div style={{fontSize:9,color:"#666",textTransform:"uppercase",letterSpacing:1,marginBottom:3}}>{s.label}</div>
+                <div style={{fontSize:18,fontWeight:"bold",color:s.col}}>{s.val}</div>
+              </div>
+            );
+          });
+        })()}
       </div>
     </div>
   );
@@ -901,6 +1176,7 @@ function WeatherOverview({ forecastData, locationName, dateRange, units }) {
 // ─── Main App ─────────────────────────────────────────────────────────────────
 function App() {
   const [forecastData, setForecastData] = useState(LONDON_DATA);
+  const [hourlyRaw,    setHourlyRaw]    = useState(null); // {times:[], temps:[], codes:[], windMph:[], gusts:[], rain:[], humidity:[], pressure:[], cloud:[], uv:[], dewpoint:[]}
   const [locationName, setLocationName] = useState("London, England");
   const [dateRange,    setDateRange]    = useState("25 May – 25 July 2026");
   const [searchText,   setSearchText]   = useState("");
@@ -918,9 +1194,19 @@ function App() {
       const geoJson = await geoRes.json();
       if(!geoJson.results||!geoJson.results.length){ setSearchErr("Location not found. Try a different name."); setSearching(false); return; }
       const place = geoJson.results[0];
-      const wRes  = await fetch("https://api.open-meteo.com/v1/forecast?latitude="+place.latitude+"&longitude="+place.longitude+"&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,precipitation_hours,windspeed_10m_max,windgusts_10m_max,relative_humidity_2m_mean,surface_pressure_mean,weathercode&timezone=auto&forecast_days=16");
+
+      // Fetch both daily AND hourly in one request
+      const wRes  = await fetch(
+        "https://api.open-meteo.com/v1/forecast?latitude="+place.latitude+"&longitude="+place.longitude+
+        "&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,precipitation_hours,windspeed_10m_max,windgusts_10m_max,relative_humidity_2m_mean,surface_pressure_mean,weathercode" +
+        "&hourly=temperature_2m,weathercode,precipitation_probability,precipitation,windspeed_10m,windgusts_10m,relativehumidity_2m,surface_pressure,cloudcover,uv_index,dewpoint_2m,visibility" +
+        "&timezone=auto&forecast_days=16"
+      );
       const wJson = await wRes.json();
       const days  = wJson.daily;
+      const hrs   = wJson.hourly;
+
+      // Build daily forecast array
       const data  = days.time.map(function(t,i){
         const temp=Math.round(days.temperature_2m_max[i]);
         const windMph=Math.round((days.windspeed_10m_max[i]||0)*0.621371);
@@ -928,6 +1214,24 @@ function App() {
         const dateStr=new Date(t+"T12:00:00").toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"});
         return { date:dateStr, temp, low:Math.round(days.temperature_2m_min[i]), type:i<5?"confirmed":i<10?"near":"estimated", condition:cond, note:"Live forecast via Open-Meteo", wind:windMph<5?"very light":windMph<10?"light":windMph<20?"moderate":"fresh", windMph, gustMph:Math.round((days.windgusts_10m_max[i]||windMph*1.3)*0.621371), rain:days.precipitation_probability_max[i]||0, humidity:Math.round(days.relative_humidity_2m_mean[i]||55), pressure:Math.round(days.surface_pressure_mean[i]||1013), rainMm:parseFloat((days.precipitation_sum[i]||0).toFixed(1)), rainHours:Math.round(days.precipitation_hours[i]||0) };
       });
+
+      // Store raw hourly arrays for accurate conditions + graphs
+      setHourlyRaw({
+        times:    hrs.time,
+        temps:    hrs.temperature_2m,
+        codes:    hrs.weathercode,
+        windMph:  hrs.windspeed_10m.map(function(v){ return Math.round((v||0)*0.621371); }),
+        gusts:    hrs.windgusts_10m.map(function(v){ return Math.round((v||0)*0.621371); }),
+        rain:     hrs.precipitation_probability,
+        rainMm:   hrs.precipitation,
+        humidity: hrs.relativehumidity_2m,
+        pressure: hrs.surface_pressure,
+        cloud:    hrs.cloudcover,
+        uv:       hrs.uv_index,
+        dewpoint: hrs.dewpoint_2m,
+        vis:      hrs.visibility,
+      });
+
       setForecastData(data);
       setLocationName(place.name+(place.country?", "+place.country:""));
       const first=new Date(days.time[0]+"T12:00:00"), last=new Date(days.time[days.time.length-1]+"T12:00:00");
@@ -977,8 +1281,9 @@ function App() {
         {/* ── Page content ── */}
         {activePage==="overview" && <WeatherOverview forecastData={forecastData} locationName={locationName} dateRange={dateRange} units={units} />}
         {activePage==="ten"      && <TenDayForecast  forecastData={forecastData} units={units} />}
-        {activePage==="hourly"   && <HourlyForecast  forecastData={forecastData} units={units} />}
-        {activePage!=="overview" && activePage!=="ten" && activePage!=="hourly" && <ComingSoon page={activePage} />}
+        {activePage==="hourly"   && <HourlyForecast  forecastData={forecastData} hourlyRaw={hourlyRaw} units={units} />}
+        {activePage==="graphs"   && <WeatherGraphs   forecastData={forecastData} hourlyRaw={hourlyRaw} units={units} />}
+        {activePage!=="overview" && activePage!=="ten" && activePage!=="hourly" && activePage!=="graphs" && <ComingSoon page={activePage} />}
 
         <div style={{textAlign:"center",marginTop:18,fontSize:11,color:"#4a4a5a",lineHeight:1.7}}>
           Estimated long-range forecast for illustrative purposes only.<br/>
