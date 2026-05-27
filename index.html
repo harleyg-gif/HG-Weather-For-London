@@ -822,6 +822,7 @@ function MapRadar({ locationName, forecastData }) {
   var tile = layers.find(function(l){return l.id===layer;}) || layers[0];
   var apiKey = "ae1c71166a78c7c450b495408e5e0d53";
   var owmUrl = "https://tile.openweathermap.org/map/"+tile.wl+"/{z}/{x}/{y}.png?appid="+apiKey;
+  var locSafe = locationName.split(",")[0].replace(/['"]/g, "");
   var mapHtml = [
     "<!DOCTYPE html><html><head>",
     "<link rel='stylesheet' href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'/>",
@@ -831,7 +832,7 @@ function MapRadar({ locationName, forecastData }) {
     "var map=L.map('m',{zoomControl:true}).setView(["+lat+","+lon+"],"+zoom+");",
     "L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'OSM',opacity:0.7}).addTo(map);",
     "L.tileLayer('"+owmUrl+"',{opacity:0.6,attribution:'OpenWeatherMap'}).addTo(map);",
-    "L.marker(["+lat+","+lon+"]).addTo(map).bindPopup('"+locationName.replace(/'/g,"")+"').openPopup();",
+    "L.marker(["+lat+","+lon+"]).addTo(map).bindPopup('"+locSafe+"').openPopup();",
     "<\/script></body></html>"
   ].join("");
 
@@ -886,7 +887,7 @@ function WeatherExtremes({ forecastData, locationName, units }) {
         })
       });
       const data = await res.json();
-      var text = (data.content||[]).map(function(c){return c.type==="text"?c.text:"";}).join("").replace(/```json|```/g,"").trim();
+      var rawText = (data.content||[]).map(function(c){return c.type==="text"?c.text:"";}).join(""); var text = rawText.split("```json").join("").split("```").join("").trim();
       var parsed = JSON.parse(text);
       setLiveRecords(parsed.records||[]);
       setLoaded(true);
