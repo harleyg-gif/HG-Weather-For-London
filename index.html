@@ -5,116 +5,173 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
-  <meta name="apple-mobile-web-app-title" content="London Forecast"/>
-  <meta name="google-site-verification" content="Ue_g3oA7clBcwld6ZYFfWUsAsB8fCMssUxfldG0DE1o" />
-  <title>London Forecast 2026</title>
+  <meta name="apple-mobile-web-app-title" content="Weather Forecast"/>
+  <title>Weather Forecast</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-    html, body { height: 100%; background: #0a0a1a; }
-    body { overscroll-behavior: none; }
-    button { font-family: Georgia, serif; }
-    ::-webkit-scrollbar { width: 4px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: rgba(255,119,0,0.3); border-radius: 4px; }
+    *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+    html,body{height:100%;background:#0a0a1a}
+    body{overscroll-behavior:none}
+    button{font-family:Georgia,serif}
+    ::-webkit-scrollbar{width:4px}
+    ::-webkit-scrollbar-track{background:transparent}
+    ::-webkit-scrollbar-thumb{background:rgba(255,119,0,0.3);border-radius:4px}
   </style>
 </head>
 <body>
 <div id="root"></div>
 <script type="text/babel">
-const { useState, useEffect, useRef } = React;
+var useState   = React.useState;
+var useEffect  = React.useEffect;
+var useRef     = React.useRef;
 
-// ─── Minimal loading placeholder (replaced immediately on mount) ──────────────
-const LOADING_DATA = [];
-
-
-// ─── Month record lines ───────────────────────────────────────────────────────
-const MONTH_RECORDS = [
-  { temp:32.8, label:"MAY REC 32.8", color:"rgba(255,160,0,0.85)", startIdx:0,  endIdx:6  },
-  { temp:35.6, label:"JUN REC 35.6", color:"rgba(255,80,0,0.85)",  startIdx:7,  endIdx:36 },
-  { temp:40.2, label:"JUL REC 40.2", color:"rgba(200,0,255,0.85)", startIdx:37, endIdx:61 },
+// ── Nav items ────────────────────────────────────────────────────────────────
+var NAV_ITEMS = [
+  {id:"overview", label:"Weather Overview", icon:"🌍"},
+  {id:"ten",      label:"10-Day Forecast",  icon:"📅"},
+  {id:"hourly",   label:"Hourly Forecast",  icon:"🕐"},
+  {id:"graphs",   label:"Weather Graphs",   icon:"📈"},
+  {id:"radar",    label:"Map and Radar",    icon:"🗺️"},
+  {id:"extremes", label:"Weather Extremes", icon:"🌡️"},
 ];
 
-// ─── Nav items ────────────────────────────────────────────────────────────────
-const NAV_ITEMS = [
-  { id:"overview",  label:"Weather Overview",  icon:"🌍" },
-  { id:"ten",       label:"10-Day Forecast",   icon:"📅" },
-  { id:"hourly",    label:"Hourly Forecast",   icon:"🕐" },
-  { id:"graphs",    label:"Weather Graphs",    icon:"📈" },
-  { id:"radar",     label:"Map & Radar",       icon:"🗺️" },
-  { id:"extremes",  label:"Weather Extremes",  icon:"🌡️" },
-];
+// ── Unit helpers ─────────────────────────────────────────────────────────────
+function cvtTemp(c,u){return u==="F"?Math.round(c*9/5+32):c;}
+function fmtTemp(c,u){return cvtTemp(c,u)+"°"+u;}
+function cvtSpd(m,u){return u==="kmh"?Math.round(m*1.60934):m;}
+function fmtSpd(m,u){return cvtSpd(m,u)+(u==="kmh"?" km/h":" mph");}
+function cvtRain(mm,u){return u==="in"?(mm*0.0393701).toFixed(2):mm.toFixed(1);}
+function fmtRain(mm,u){if(mm===0)return "0"+(u==="in"?'"':"mm");return cvtRain(mm,u)+(u==="in"?'"':"mm");}
+function cvtPres(mb,u){if(u==="pa")return Math.round(mb*100);if(u==="bar")return (mb/1000).toFixed(4);if(u==="ba")return Math.round(mb*1000);return mb;}
+function fmtPres(mb,u){var v=cvtPres(mb,u);if(u==="pa")return v+" Pa";if(u==="bar")return v+" bar";if(u==="ba")return v+" ba";return v+" mbar";}
 
-// ─── Unit helpers ─────────────────────────────────────────────────────────────
-function cvtTemp(c,u)    { return u==="F"?Math.round(c*9/5+32):c; }
-function fmtTemp(c,u)    { return cvtTemp(c,u)+"°"+u; }
-function cvtSpeed(m,u)   { return u==="kmh"?Math.round(m*1.60934):m; }
-function fmtSpeed(m,u)   { return cvtSpeed(m,u)+(u==="kmh"?" km/h":" mph"); }
-function cvtRain(mm,u)   { return u==="in"?(mm*0.0393701).toFixed(2):mm.toFixed(1); }
-function fmtRain(mm,u)   { if(mm===0) return "0"+(u==="in"?'"':"mm"); return cvtRain(mm,u)+(u==="in"?'"':"mm"); }
-function cvtPres(mb,u)   { if(u==="pa") return Math.round(mb*100); if(u==="bar") return (mb/1000).toFixed(4); if(u==="ba") return Math.round(mb*1000); return mb; }
-function fmtPres(mb,u)   { const v=cvtPres(mb,u); if(u==="pa") return v+" Pa"; if(u==="bar") return v+" bar"; if(u==="ba") return v+" ba"; return v+" mbar"; }
+// ── Colour helpers ───────────────────────────────────────────────────────────
+function tc(t){return t>=36?"#ff1500":t>=33?"#ff3d00":t>=30?"#ff6600":t>=27?"#ff8800":t>=24?"#ffaa00":t>=21?"#ffcc00":t>=18?"#c8d400":t>=15?"#7bbf44":"#4a9fd4";}
+function rc(r){return r>=70?"#4488ff":r>=40?"#66aaff":r>=20?"#88ccff":"#aaddff";}
+function hc(h){return h>=80?"#7755cc":h>=60?"#9977dd":h>=40?"#bbaaee":"#ddccff";}
+function wc(w){return w>=30?"#ff7722":w>=20?"#ffaa44":w>=10?"#ffcc88":"#fff0cc";}
+function pc(p){return p>=1030?"#ff6600":p>=1020?"#ffaa00":p>=1010?"#88ddff":p>=1000?"#6699cc":"#9955cc";}
+function bgc(t){return t>=33?"rgba(255,45,0,0.18)":t>=30?"rgba(255,100,0,0.14)":t>=27?"rgba(255,140,0,0.11)":t>=24?"rgba(255,170,0,0.09)":t>=21?"rgba(255,200,0,0.08)":t>=18?"rgba(180,210,0,0.08)":"rgba(74,159,212,0.06)";}
+function uvCol(uv){return uv>=8?"#ff1500":uv>=6?"#ff6600":uv>=3?"#ffcc00":uv>0?"#7bbf44":"#555";}
+function uvLbl(uv){return uv>=8?"Extreme":uv>=6?"Very High":uv>=3?"Moderate":uv>0?"Low":"None";}
 
-// ─── Wind ─────────────────────────────────────────────────────────────────────
-function windCat(mph) {
-  if(mph<5)  return "Very Light Wind";  if(mph<10) return "Light Breeze";
-  if(mph<15) return "Moderate Breeze"; if(mph<20) return "Fresh Breeze";
-  if(mph<30) return "Strong Breeze";   if(mph<40) return "Gale";
-  if(mph<50) return "Strong Gale";     if(mph<60) return "Violent Gale";
-  if(mph<73) return "Very Violent Gale"; return "Hurricane Winds";
+// ── Wind ─────────────────────────────────────────────────────────────────────
+function windCat(mph){
+  if(mph<5)return "Very Light";if(mph<10)return "Light Breeze";if(mph<15)return "Moderate Breeze";
+  if(mph<20)return "Fresh Breeze";if(mph<30)return "Strong Breeze";if(mph<40)return "Gale";
+  if(mph<50)return "Strong Gale";if(mph<60)return "Violent Gale";if(mph<73)return "Very Violent Gale";
+  return "Hurricane";
 }
 
-// ─── Feel-like ────────────────────────────────────────────────────────────────
-function condBonus(cond,temp,shade) {
-  const isRain=cond.includes("🌧")||cond.includes("⛈")||cond.includes("🌦");
-  const eff=shade?(isRain?cond:"☁️"):cond;
-  if(eff.includes("⛈")) return -5; if(eff.includes("🌧")) return -4;
-  if(eff.includes("🌦")) return -4; if(eff.includes("☁"))  return -2;
-  if(eff.includes("⛅")) return  0; if(eff.includes("🌤")) return  1;
-  if(eff.includes("🌡")) return temp>40?8:temp>35?7:temp>30?6:temp>25?5:4;
-  if(eff.includes("☀"))  return temp>40?8:temp>35?7:temp>30?6:temp>25?5:temp>20?4:3;
+// ── Feel-like ────────────────────────────────────────────────────────────────
+function condBonus(cond,temp,shade){
+  var isRain=cond.includes("\u{1F327}")||cond.includes("\u26C8")||cond.includes("\u{1F326}");
+  var eff=shade?(isRain?cond:"\u2601\uFE0F"):cond;
+  if(eff.includes("\u26C8"))return -5;if(eff.includes("\u{1F327}"))return -4;
+  if(eff.includes("\u{1F326}"))return -4;if(eff.includes("\u2601"))return -2;
+  if(eff.includes("\u26C5"))return 0;if(eff.includes("\u{1F324}"))return 1;
+  if(eff.includes("\u{1F321}"))return temp>40?8:temp>35?7:temp>30?6:temp>25?5:4;
+  if(eff.includes("\u2600"))return temp>40?8:temp>35?7:temp>30?6:temp>25?5:temp>20?4:3;
   return 0;
 }
-function humBonus(h)  { if(h<=10)return -2;if(h<=20)return -1;if(h<=30)return 0;if(h<=40)return 1;if(h<=50)return 2;if(h<=60)return 3;if(h<=70)return 4;if(h<=80)return 6;if(h<=90)return 8;return 10; }
-function windBonus(m) { if(m<5)return 1;if(m<10)return 0;if(m<15)return -1;if(m<20)return -3;if(m<30)return -5;if(m<40)return -6;if(m<50)return -8;if(m<60)return -13;return -30; }
-function sunFeel(t,m,h,c)   { return Math.round(t+condBonus(c,t,false)+humBonus(h)+windBonus(m)); }
-function shadeFeel(t,m,h,c) { return Math.round(t+condBonus(c,t,true) +humBonus(h)+windBonus(m)); }
-function hasSun(c) { return c.includes("☀")||c.includes("🌡")||c.includes("🌤")||c.includes("⛅"); }
+function humBonus(h){if(h<=10)return -2;if(h<=20)return -1;if(h<=30)return 0;if(h<=40)return 1;if(h<=50)return 2;if(h<=60)return 3;if(h<=70)return 4;if(h<=80)return 6;if(h<=90)return 8;return 10;}
+function windBonus(m){if(m<5)return 1;if(m<10)return 0;if(m<15)return -1;if(m<20)return -3;if(m<30)return -5;if(m<40)return -6;if(m<50)return -8;if(m<60)return -13;return -30;}
+function sunFeel(t,m,h,c){return Math.round(t+condBonus(c,t,false)+humBonus(h)+windBonus(m));}
+function shadeFeel(t,m,h,c){return Math.round(t+condBonus(c,t,true)+humBonus(h)+windBonus(m));}
+function hasSun(c){return c.includes("\u2600")||c.includes("\u{1F321}")||c.includes("\u{1F324}")||c.includes("\u26C5");}
 
-// ─── Colours ──────────────────────────────────────────────────────────────────
-const tc = t=>t>=36?"#ff1500":t>=33?"#ff3d00":t>=30?"#ff6600":t>=27?"#ff8800":t>=24?"#ffaa00":t>=21?"#ffcc00":t>=18?"#c8d400":t>=15?"#7bbf44":"#4a9fd4";
-const rc = r=>r>=70?"#4488ff":r>=40?"#66aaff":r>=20?"#88ccff":"#aaddff";
-const hc = h=>h>=80?"#7755cc":h>=60?"#9977dd":h>=40?"#bbaaee":"#ddccff";
-const wc = w=>w>=30?"#ff7722":w>=20?"#ffaa44":w>=10?"#ffcc88":"#fff0cc";
-const pc = p=>p>=1030?"#ff6600":p>=1020?"#ffaa00":p>=1010?"#88ddff":p>=1000?"#6699cc":"#9955cc";
-const bgc= t=>t>=33?"rgba(255,45,0,0.18)":t>=30?"rgba(255,100,0,0.14)":t>=27?"rgba(255,140,0,0.11)":t>=24?"rgba(255,170,0,0.09)":t>=21?"rgba(255,200,0,0.08)":t>=18?"rgba(180,210,0,0.08)":"rgba(74,159,212,0.06)";
-
-// ─── Condition from WMO code ──────────────────────────────────────────────────
-function condFromCode(code,temp) {
-  if(code===0) return temp>=30?"🌡️":"☀️";
-  if(code<=2)  return "⛅"; if(code<=3)  return "☁️"; if(code<=48) return "☁️";
-  if(code<=57) return "🌦"; if(code<=67) return "🌧"; if(code<=77) return "🌨️";
-  if(code<=82) return "🌦"; if(code<=86) return "🌨️"; return "⛈️";
+// ── WMO code to emoji ────────────────────────────────────────────────────────
+function condFromCode(code,temp){
+  if(code===0)return temp>=30?"\u{1F321}\uFE0F":"\u2600\uFE0F";
+  if(code<=2)return "\u26C5";if(code<=3)return "\u2601\uFE0F";if(code<=48)return "\u2601\uFE0F";
+  if(code<=57)return "\u{1F326}";if(code<=67)return "\u{1F327}";if(code<=77)return "\u{1F328}\uFE0F";
+  if(code<=82)return "\u{1F326}";if(code<=86)return "\u{1F328}\uFE0F";return "\u26C8\uFE0F";
 }
 
-// ─── Period breakdown ─────────────────────────────────────────────────────────
-function getDayPeriods(d) {
-  const isRainy=d.rain>40;
+// ── Period breakdown ─────────────────────────────────────────────────────────
+function getDayPeriods(d){
+  var isRainy=d.rain>40;
   return {
-    morning:  { time:"06:00–12:00", temp:Math.round(d.low+(d.temp-d.low)*0.4), condition:d.condition, rain:isRainy?Math.round(d.rain*0.6):Math.max(0,d.rain-10), rainMm:parseFloat((d.rainMm*0.4).toFixed(1)), windMph:Math.round(d.windMph*0.9),   note:isRainy?"Possible showers building":"Generally dry start" },
-    afternoon:{ time:"12:00–18:00", temp:d.temp,                                condition:d.condition, rain:d.rain,                                                rainMm:d.rainMm,                               windMph:d.windMph,                    note:d.note },
-    evening:  { time:"18:00–00:00", temp:Math.round(d.temp*0.75+d.low*0.25),   condition:d.condition, rain:isRainy?Math.round(d.rain*0.7):Math.max(0,d.rain-15),  rainMm:parseFloat((d.rainMm*0.5).toFixed(1)), windMph:Math.round(d.windMph*1.1),   note:"Cooling down" },
+    morning:{time:"06:00-12:00",temp:Math.round(d.low+(d.temp-d.low)*0.4),condition:d.condition,rain:isRainy?Math.round(d.rain*0.6):Math.max(0,d.rain-10),rainMm:parseFloat((d.rainMm*0.4).toFixed(1)),windMph:Math.round(d.windMph*0.9),note:isRainy?"Possible showers":"Generally dry"},
+    afternoon:{time:"12:00-18:00",temp:d.temp,condition:d.condition,rain:d.rain,rainMm:d.rainMm,windMph:d.windMph,note:d.note},
+    evening:{time:"18:00-00:00",temp:Math.round(d.temp*0.75+d.low*0.25),condition:d.condition,rain:isRainy?Math.round(d.rain*0.7):Math.max(0,d.rain-15),rainMm:parseFloat((d.rainMm*0.5).toFixed(1)),windMph:Math.round(d.windMph*1.1),note:"Cooling down"},
   };
 }
 
-// ─── Settings panel ───────────────────────────────────────────────────────────
-function SettingsPanel({ units, setUnits, onClose }) {
-  const row = { display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0",borderBottom:"1px solid rgba(255,255,255,0.06)" };
-  function Btn({ val, cur, set, children }) {
-    const on=cur===val;
-    return <button onClick={()=>set(val)} style={{padding:"4px 11px",borderRadius:14,border:"1px solid",borderColor:on?"#ff7700":"rgba(255,255,255,0.15)",background:on?"rgba(255,119,0,0.22)":"rgba(255,255,255,0.04)",color:on?"#ffaa44":"#888",fontSize:12,cursor:"pointer"}}>{children}</button>;
+// ── Hourly builder ───────────────────────────────────────────────────────────
+function buildHourly(forecastData,hourlyRaw,dayIndex){
+  if(hourlyRaw&&hourlyRaw.times&&hourlyRaw.times.length>0){
+    var seen={},dates=[];
+    hourlyRaw.times.forEach(function(t){var d=t.split("T")[0];if(!seen[d]){seen[d]=true;dates.push(d);}});
+    var target=dates[dayIndex];
+    if(!target)return [];
+    var hrs=[];
+    hourlyRaw.times.forEach(function(t,i){
+      if(t.split("T")[0]!==target)return;
+      var h=parseInt(t.split("T")[1].split(":")[0]);
+      var temp=Math.round((hourlyRaw.temps[i]||0)*10)/10;
+      var code=hourlyRaw.codes[i]||0;
+      var cond=condFromCode(code,Math.round(temp));
+      if((h<6||h>=21)&&(cond.includes("\u2600")||cond.includes("\u{1F321}")))cond="\u{1F319}";
+      var mph=hourlyRaw.windMph[i]||0;
+      var gust=hourlyRaw.gusts[i]||Math.round(mph*1.3);
+      var hum=Math.round(hourlyRaw.humidity[i]||55);
+      var pres=Math.round(hourlyRaw.pressure[i]||1013);
+      var cloud=Math.round(hourlyRaw.cloud[i]||0);
+      var uv=Math.round(hourlyRaw.uv[i]||0);
+      var rainC=Math.round(hourlyRaw.rain[i]||0);
+      var rainMm=parseFloat((hourlyRaw.rainMm[i]||0).toFixed(1));
+      var dewp=hourlyRaw.dewpoint?Math.round(hourlyRaw.dewpoint[i]):Math.round(temp-((100-hum)/5));
+      var vis=hourlyRaw.vis&&hourlyRaw.vis[i]!==null?(hourlyRaw.vis[i]>=20000?"Excellent (20km+)":hourlyRaw.vis[i]>=10000?"Good (10-20km)":hourlyRaw.vis[i]>=5000?"Moderate (5-10km)":"Poor (<5km)"):"Good";
+      var dirs=["N","NE","NE","E","SE","SE","S","SW","SW","W","NW","NW"];
+      var windDir=dirs[Math.floor((dayIndex*4+h/6))%12];
+      var fl=Math.round(temp+condBonus(cond,temp,false)+humBonus(hum)+windBonus(mph));
+      hrs.push({hour:h,timeStr:(h<10?"0":"")+h+":00",temp:temp,feelsLike:fl,condition:cond,windMph:mph,gustMph:gust,windDir:windDir,humidity:hum,dewPoint:dewp,pressure:pres,rainChance:rainC,rainMm:rainMm,uv:uv,cloud:cloud,visibility:vis});
+    });
+    return hrs;
+  }
+  // fallback generated
+  var d=forecastData[dayIndex];
+  if(!d)return [];
+  var hrs=[];
+  for(var h=0;h<24;h++){
+    var prog=Math.sin(((h-15)/24)*Math.PI*2+Math.PI*0.5);
+    prog=Math.max(0,Math.min(1,(prog+1)/2));
+    var temp=Math.round((d.low+(d.temp-d.low)*Math.pow(prog,1.4))*10)/10;
+    var isN=h<6||h>=21;
+    var wf=h>=11&&h<=18?1.15:isN?0.75:1.0;
+    var mph=Math.round(d.windMph*wf);
+    var gust=Math.round(d.gustMph*wf);
+    var hum=Math.min(99,Math.max(10,Math.round(d.humidity+(isN?12:h>=12&&h<=16?-10:0))));
+    var rainC=d.rain;
+    var rainMm=0;
+    if(d.rainHours>0){var rp=d.condition.includes("\u26C8")?(h>=14&&h<=18):(h>=8&&h<=14);if(rp)rainC=Math.min(99,d.rain+20);rainMm=parseFloat((d.rainMm*(rp?0.12:0.02)).toFixed(1));}
+    var pres=Math.round(d.pressure+(d.temp>28&&h>=12&&h<=16?-1:0));
+    var cond=d.condition;
+    if(isN)cond=d.condition.includes("\u26C8")?"\u{1F327}":d.condition.includes("\u{1F327}")?"\u{1F327}":"\u{1F319}";
+    var sp=h>=6&&h<=20?(1-Math.abs((h-13)/7)):0;
+    var maxUv=d.temp>=35?9:d.temp>=30?8:d.temp>=25?7:d.temp>=20?5:4;
+    var uv=d.condition.includes("\u2601")?Math.round(maxUv*0.3*sp):Math.round(maxUv*sp*sp);
+    var cloud=cond.includes("\u2600")||cond.includes("\u{1F321}")?10:cond.includes("\u{1F324}")?30:cond.includes("\u26C5")?55:cond.includes("\u2601")?85:90;
+    var vis=hum>80?"Poor (<5km)":hum>65?"Moderate (5-10km)":hum>45?"Good (10-20km)":"Excellent (20km+)";
+    var dewp=Math.round(temp-((100-hum)/5));
+    var dirs=["N","NE","NE","E","SE","SE","S","SW","SW","W","NW","NW"];
+    var windDir=dirs[Math.floor((dayIndex*4+h/6))%12];
+    var fl=Math.round(temp+condBonus(cond,temp,false)+humBonus(hum)+windBonus(mph));
+    hrs.push({hour:h,timeStr:(h<10?"0":"")+h+":00",temp:temp,feelsLike:fl,condition:cond,windMph:mph,gustMph:gust,windDir:windDir,humidity:hum,dewPoint:dewp,pressure:pres,rainChance:Math.min(99,Math.round(rainC)),rainMm:rainMm,uv:uv,cloud:cloud,visibility:vis});
+  }
+  return hrs;
+}
+
+// ── Settings ─────────────────────────────────────────────────────────────────
+function SettingsPanel(props){
+  var units=props.units,setUnits=props.setUnits,onClose=props.onClose;
+  var row={display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0",borderBottom:"1px solid rgba(255,255,255,0.06)"};
+  function Btn(p){
+    var on=p.cur===p.val;
+    return React.createElement("button",{onClick:function(){p.set(p.val);},style:{padding:"4px 11px",borderRadius:14,border:"1px solid",borderColor:on?"#ff7700":"rgba(255,255,255,0.15)",background:on?"rgba(255,119,0,0.22)":"rgba(255,255,255,0.04)",color:on?"#ffaa44":"#888",fontSize:12,cursor:"pointer"}},p.children);
   }
   return (
     <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.72)",zIndex:200,display:"flex",alignItems:"flex-start",justifyContent:"center",paddingTop:60}}>
@@ -123,77 +180,43 @@ function SettingsPanel({ units, setUnits, onClose }) {
           <span style={{fontSize:15,color:"#ff9944",letterSpacing:2,textTransform:"uppercase"}}>Settings</span>
           <button onClick={onClose} style={{background:"none",border:"none",color:"#888",fontSize:20,cursor:"pointer"}}>x</button>
         </div>
-        <div style={row}><span style={{fontSize:13,color:"#e8dcc8"}}>Temperature</span><div style={{display:"flex",gap:5}}><Btn val="C" cur={units.temp} set={v=>setUnits(u=>({...u,temp:v}))}>C</Btn><Btn val="F" cur={units.temp} set={v=>setUnits(u=>({...u,temp:v}))}>F</Btn></div></div>
-        <div style={row}><span style={{fontSize:13,color:"#e8dcc8"}}>Wind Speed</span><div style={{display:"flex",gap:5}}><Btn val="mph" cur={units.speed} set={v=>setUnits(u=>({...u,speed:v}))}>mph</Btn><Btn val="kmh" cur={units.speed} set={v=>setUnits(u=>({...u,speed:v}))}>km/h</Btn></div></div>
-        <div style={row}><span style={{fontSize:13,color:"#e8dcc8"}}>Precipitation</span><div style={{display:"flex",gap:5}}><Btn val="mm" cur={units.rain} set={v=>setUnits(u=>({...u,rain:v}))}>mm</Btn><Btn val="in" cur={units.rain} set={v=>setUnits(u=>({...u,rain:v}))}>in</Btn></div></div>
-        <div style={{...row,borderBottom:"none"}}><span style={{fontSize:13,color:"#e8dcc8"}}>Pressure</span><div style={{display:"flex",gap:5}}><Btn val="mbar" cur={units.pressure} set={v=>setUnits(u=>({...u,pressure:v}))}>mbar</Btn><Btn val="pa" cur={units.pressure} set={v=>setUnits(u=>({...u,pressure:v}))}>Pa</Btn><Btn val="bar" cur={units.pressure} set={v=>setUnits(u=>({...u,pressure:v}))}>bar</Btn><Btn val="ba" cur={units.pressure} set={v=>setUnits(u=>({...u,pressure:v}))}>ba</Btn></div></div>
+        <div style={row}><span style={{fontSize:13,color:"#e8dcc8"}}>Temperature</span><div style={{display:"flex",gap:5}}><Btn val="C" cur={units.temp} set={function(v){setUnits(function(u){return Object.assign({},u,{temp:v});});}}>C</Btn><Btn val="F" cur={units.temp} set={function(v){setUnits(function(u){return Object.assign({},u,{temp:v});});}}>F</Btn></div></div>
+        <div style={row}><span style={{fontSize:13,color:"#e8dcc8"}}>Wind Speed</span><div style={{display:"flex",gap:5}}><Btn val="mph" cur={units.speed} set={function(v){setUnits(function(u){return Object.assign({},u,{speed:v});});}}>mph</Btn><Btn val="kmh" cur={units.speed} set={function(v){setUnits(function(u){return Object.assign({},u,{speed:v});});}}>km/h</Btn></div></div>
+        <div style={row}><span style={{fontSize:13,color:"#e8dcc8"}}>Precipitation</span><div style={{display:"flex",gap:5}}><Btn val="mm" cur={units.rain} set={function(v){setUnits(function(u){return Object.assign({},u,{rain:v});});}}>mm</Btn><Btn val="in" cur={units.rain} set={function(v){setUnits(function(u){return Object.assign({},u,{rain:v});});}}>in</Btn></div></div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 0"}}><span style={{fontSize:13,color:"#e8dcc8"}}>Pressure</span><div style={{display:"flex",gap:5}}><Btn val="mbar" cur={units.pressure} set={function(v){setUnits(function(u){return Object.assign({},u,{pressure:v});});}}>mbar</Btn><Btn val="pa" cur={units.pressure} set={function(v){setUnits(function(u){return Object.assign({},u,{pressure:v});});}}>Pa</Btn><Btn val="bar" cur={units.pressure} set={function(v){setUnits(function(u){return Object.assign({},u,{pressure:v});});}}>bar</Btn><Btn val="ba" cur={units.pressure} set={function(v){setUnits(function(u){return Object.assign({},u,{pressure:v});});}}>ba</Btn></div></div>
       </div>
     </div>
   );
 }
 
-// ─── Nav Dropdown ─────────────────────────────────────────────────────────────
-function NavDropdown({ activePage, setActivePage }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef(null);
-
-  useEffect(function() {
-    function handler(e) { if(ref.current && !ref.current.contains(e.target)) setOpen(false); }
-    document.addEventListener("mousedown", handler);
-    return function() { document.removeEventListener("mousedown", handler); };
-  }, []);
-
-  const active = NAV_ITEMS.find(function(n){ return n.id===activePage; }) || NAV_ITEMS[0];
-
+// ── Nav Dropdown ─────────────────────────────────────────────────────────────
+function NavDropdown(props){
+  var activePage=props.activePage,setActivePage=props.setActivePage;
+  var open=useState(false);
+  var isOpen=open[0],setOpen=open[1];
+  var ref=useRef(null);
+  useEffect(function(){
+    function h(e){if(ref.current&&!ref.current.contains(e.target))setOpen(false);}
+    document.addEventListener("mousedown",h);
+    return function(){document.removeEventListener("mousedown",h);};
+  },[]);
+  var active=NAV_ITEMS.find(function(n){return n.id===activePage;})||NAV_ITEMS[0];
   return (
     <div ref={ref} style={{position:"relative",flexShrink:0}}>
-      <button
-        onClick={function(){ setOpen(function(o){ return !o; }); }}
-        style={{
-          display:"flex",alignItems:"center",gap:6,
-          padding:"10px 12px",borderRadius:12,cursor:"pointer",
-          background:"rgba(255,255,255,0.05)",
-          border:"1px solid rgba(255,255,255,0.18)",
-          color:"#e8dcc8",fontSize:13,whiteSpace:"nowrap",
-          boxShadow:open?"0 0 0 1px rgba(255,119,0,0.4)":"none"
-        }}
-      >
+      <button onClick={function(){setOpen(function(o){return !o;});}} style={{display:"flex",alignItems:"center",gap:6,padding:"10px 12px",borderRadius:12,cursor:"pointer",background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.18)",color:"#e8dcc8",fontSize:13,whiteSpace:"nowrap"}}>
         <span>{active.icon}</span>
         <span style={{maxWidth:110,overflow:"hidden",textOverflow:"ellipsis"}}>{active.label}</span>
-        <span style={{fontSize:10,color:"#888",marginLeft:2}}>{open?"▲":"▼"}</span>
+        <span style={{fontSize:10,color:"#888"}}>{isOpen?"▲":"▼"}</span>
       </button>
-
-      {open && (
-        <div style={{
-          position:"absolute",top:"calc(100% + 6px)",left:0,
-          background:"#0e1624",border:"1px solid rgba(255,119,0,0.3)",
-          borderRadius:12,overflow:"hidden",zIndex:150,
-          boxShadow:"0 8px 32px rgba(0,0,0,0.8)",minWidth:200
-        }}>
+      {isOpen&&(
+        <div style={{position:"absolute",top:"calc(100% + 6px)",left:0,background:"#0e1624",border:"1px solid rgba(255,119,0,0.3)",borderRadius:12,overflow:"hidden",zIndex:150,boxShadow:"0 8px 32px rgba(0,0,0,0.8)",minWidth:210}}>
           {NAV_ITEMS.map(function(item){
-            const isActive = item.id===activePage;
-            const isOverview = item.id==="overview";
+            var isAct=item.id===activePage;
             return (
-              <button
-                key={item.id}
-                onClick={function(){
-                  setActivePage(item.id);
-                  setOpen(false);
-                }}
-                style={{
-                  display:"flex",alignItems:"center",gap:10,
-                  width:"100%",padding:"11px 14px",
-                  background:isActive?"rgba(255,119,0,0.15)":"transparent",
-                  border:"none",
-                  borderBottom: isOverview?"1px solid rgba(255,119,0,0.25)":"1px solid rgba(255,255,255,0.04)",
-                  color:isActive?"#ffaa44":"#bbb",
-                  fontSize:13,cursor:"pointer",textAlign:"left",
-                  outline: isActive?"1px solid rgba(255,119,0,0.5)":"none",
-                }}
-              >
+              <button key={item.id} onClick={function(){setActivePage(item.id);setOpen(false);}} style={{display:"flex",alignItems:"center",gap:10,width:"100%",padding:"11px 14px",background:isAct?"rgba(255,119,0,0.15)":"transparent",border:"none",borderBottom:"1px solid rgba(255,255,255,0.04)",color:isAct?"#ffaa44":"#bbb",fontSize:13,cursor:"pointer",textAlign:"left",outline:isAct?"1px solid rgba(255,119,0,0.4)":"none"}}>
                 <span style={{fontSize:16}}>{item.icon}</span>
                 <span>{item.label}</span>
-                {isActive && <span style={{marginLeft:"auto",fontSize:10,color:"#ff7700"}}>●</span>}
+                {isAct&&<span style={{marginLeft:"auto",color:"#ff7700",fontSize:10}}>●</span>}
               </button>
             );
           })}
@@ -203,883 +226,249 @@ function NavDropdown({ activePage, setActivePage }) {
   );
 }
 
-// ─── Hourly data — uses real API data if available, falls back to generated ───
-function buildHourlyData(dailyData, hourlyRaw, dayIndex) {
-  // If we have real hourly data from Open-Meteo, use it
-  if (hourlyRaw && hourlyRaw.times && hourlyRaw.times.length > 0) {
-    var dayDate = null;
-    // Find the date string for this day index by looking at the data
-    // hourlyRaw.times are like "2026-05-25T00:00"
-    // Extract unique dates
-    var seen = {};
-    var dates = [];
-    hourlyRaw.times.forEach(function(t) {
-      var d = t.split("T")[0];
-      if (!seen[d]) { seen[d] = true; dates.push(d); }
-    });
-    var targetDate = dates[dayIndex];
-    if (!targetDate) return [];
-
-    var hours = [];
-    hourlyRaw.times.forEach(function(t, i) {
-      if (t.split("T")[0] !== targetDate) return;
-      var h = parseInt(t.split("T")[1].split(":")[0]);
-      var temp = hourlyRaw.temps[i];
-      var code = hourlyRaw.codes[i] || 0;
-      var cond = condFromCode(code, Math.round(temp));
-      var isNight = h < 6 || h >= 21;
-      if (isNight && cond === "☀️") cond = "🌙";
-      if (isNight && cond === "🌡️") cond = "🌙";
-      var vis = hourlyRaw.vis ? hourlyRaw.vis[i] : null;
-      var visStr = vis === null ? "Unknown" : vis >= 20000 ? "Excellent (20km+)" : vis >= 10000 ? "Good (10-20km)" : vis >= 5000 ? "Moderate (5-10km)" : "Poor (<5km)";
-      var dewp = hourlyRaw.dewpoint ? Math.round(hourlyRaw.dewpoint[i]) : Math.round(temp - ((100-(hourlyRaw.humidity[i]||55))/5));
-      var dirs = ["N","NE","NE","E","SE","SE","S","SW","SW","W","NW","NW"];
-      var windDir = dirs[Math.floor((dayIndex*4 + h/6)) % 12];
-      var mph = hourlyRaw.windMph[i] || 0;
-      var gust = hourlyRaw.gusts[i] || Math.round(mph*1.3);
-      var hum = Math.round(hourlyRaw.humidity[i] || 55);
-      var pres = Math.round(hourlyRaw.pressure[i] || 1013);
-      var cloud = Math.round(hourlyRaw.cloud[i] || 0);
-      var uv = Math.round(hourlyRaw.uv[i] || 0);
-      var rainChance = Math.round(hourlyRaw.rain[i] || 0);
-      var rainMm = parseFloat((hourlyRaw.rainMm[i] || 0).toFixed(1));
-      var feelsLike = Math.round(temp + condBonus(cond,temp,false) + humBonus(hum) + windBonus(mph));
-      hours.push({
-        day: targetDate, hour: h,
-        timeStr: (h<10?"0":"")+h+":00",
-        temp: Math.round(temp*10)/10,
-        feelsLike, condition: cond,
-        windMph: mph, gustMph: gust, windDir,
-        humidity: hum, dewPoint: dewp,
-        pressure: pres, rainChance, rainMm,
-        uv, cloud, visibility: visStr,
-      });
-    });
-    return hours;
-  }
-
-  // Fallback: generate from daily data
-  var days = dailyData.slice(dayIndex, dayIndex + 1);
-  if (!days.length) return [];
-  var d = days[0];
-  var hours = [];
-  for (var h = 0; h < 24; h++) {
-    var progress = Math.sin(((h - 15) / 24) * Math.PI * 2 + Math.PI * 0.5);
-    progress = Math.max(0, Math.min(1, (progress + 1) / 2));
-    var temp = Math.round((d.low + (d.temp - d.low) * Math.pow(progress, 1.4)) * 10) / 10;
-    var isNight = h < 6 || h >= 21;
-    var windFactor = h>=11&&h<=18?1.15:h<6||h>21?0.75:1.0;
-    var windMph = Math.round(d.windMph * windFactor);
-    var gustMph = Math.round(d.gustMph * windFactor);
-    var hum = Math.min(99, Math.max(10, Math.round(d.humidity + (h<6||h>22?12:h>=12&&h<=16?-10:0))));
-    var rainChance = d.rain;
-    var rainHourly = 0;
-    if (d.rainHours > 0) {
-      var rainPeak = d.condition.includes("⛈")?(h>=14&&h<=18):(h>=8&&h<=14);
-      if (rainPeak) rainChance = Math.min(99, d.rain + 20);
-      rainHourly = parseFloat((d.rainMm * (rainPeak?0.12:0.02)).toFixed(1));
-    }
-    var pres = Math.round(d.pressure + (d.temp>28&&h>=12&&h<=16?-1:0));
-    var cond = d.condition;
-    if (isNight) cond = d.condition.includes("⛈")?"🌧":d.condition.includes("🌧")?"🌧":"🌙";
-    var solarProg = h>=6&&h<=20?(1-Math.abs((h-13)/7)):0;
-    var maxUv = d.temp>=35?9:d.temp>=30?8:d.temp>=25?7:d.temp>=20?5:4;
-    var uv = d.condition.includes("☁")?Math.round(maxUv*0.3*solarProg):Math.round(maxUv*solarProg*solarProg);
-    var cloud = cond.includes("☀")||cond.includes("🌡")?Math.round(Math.random()*15):cond.includes("🌤")?Math.round(20+Math.random()*25):cond.includes("⛅")?Math.round(40+Math.random()*20):cond.includes("☁")?Math.round(75+Math.random()*20):90;
-    var vis = hum>80?"Poor (<5km)":hum>65?"Moderate (5-10km)":hum>45?"Good (10-20km)":"Excellent (20km+)";
-    var dewPoint = Math.round(temp-((100-hum)/5));
-    var dirs = ["N","NE","NE","E","SE","SE","S","SW","SW","W","NW","NW"];
-    var windDir = dirs[Math.floor((dayIndex*4+h/6))%12];
-    var feelsLike = Math.round(temp + condBonus(cond,temp,false) + humBonus(hum) + windBonus(windMph));
-    hours.push({ day:d.date, hour:h, timeStr:(h<10?"0":"")+h+":00", temp, feelsLike, condition:cond, windMph, gustMph, windDir, humidity:hum, dewPoint, pressure:pres, rainChance:Math.min(99,Math.round(rainChance)), rainMm:rainHourly, uv, cloud, visibility:vis });
-  }
-  return hours;
-}
-
-function uvLabel(uv) {
-  if (uv === 0) return { label:"None", color:"#555" };
-  if (uv <= 2)  return { label:"Low", color:"#7bbf44" };
-  if (uv <= 5)  return { label:"Moderate", color:"#ffcc00" };
-  if (uv <= 7)  return { label:"High", color:"#ff8800" };
-  if (uv <= 10) return { label:"Very High", color:"#ff3d00" };
-  return { label:"Extreme", color:"#ff1500" };
-}
-
-// ─── Hourly Forecast view ─────────────────────────────────────────────────────
-function HourlyForecast({ forecastData, hourlyRaw, units }) {
-  const u = units;
-  const [selDay,  setSelDay]  = useState(0);
-  const [selHour, setSelHour] = useState(null);
-
-  // Reset when new location is searched
-  useEffect(function() {
-    setSelDay(0);
-    setSelHour(null);
-  }, [forecastData]);
-
-  var hours = buildHourlyData(forecastData, hourlyRaw, selDay);
-
-  var day = forecastData[selDay] || forecastData[0];
-
-  // Max temp for bar scaling
-  var maxH = Math.max(...hours.map(function(h){ return h.temp; }));
-  var minH = Math.min(...hours.map(function(h){ return h.temp; }));
-
+// ── Day card (shared) ─────────────────────────────────────────────────────────
+function DayCard(props){
+  var d=props.d,i=props.i,sel=props.sel,setSel=props.setSel,u=props.u,detailView=props.detailView,setDetailView=props.setDetailView;
+  var color=tc(d.temp),isC=d.type==="confirmed",isN=d.type==="near",isSel=sel===i;
+  var shade=shadeFeel(d.temp,d.windMph,d.humidity,d.condition);
+  var sun=sunFeel(d.temp,d.windMph,d.humidity,d.condition);
+  var sunny=hasSun(d.condition);
+  var storm=d.humidity>=50&&d.temp>=28;
+  var cat=windCat(d.windMph);
+  var periods=getDayPeriods(d);
   return (
-    <div>
-      <div style={{fontSize:11,letterSpacing:3,color:"#ff7700",textTransform:"uppercase",marginBottom:16}}>Hourly Forecast</div>
-
-      {/* Day selector */}
-      <div style={{display:"flex",gap:6,marginBottom:18,flexWrap:"wrap"}}>
-        {forecastData.slice(0, 7).map(function(d, i) {
-          var on = selDay === i;
-          return (
-            <button key={i} onClick={function(){ setSelDay(i); setSelHour(null); }} style={{
-              padding:"7px 12px", borderRadius:10, border:"1px solid",
-              borderColor: on ? tc(d.temp) : "rgba(255,255,255,0.12)",
-              background: on ? bgc(d.temp) : "rgba(255,255,255,0.03)",
-              color: on ? tc(d.temp) : "#888", fontSize:11, cursor:"pointer",
-              display:"flex", flexDirection:"column", alignItems:"center", gap:2
-            }}>
-              <span style={{fontSize:16}}>{d.condition}</span>
-              <span style={{fontWeight:"bold"}}>{d.date.split(" ").slice(0,2).join(" ")}</span>
-              <span>{fmtTemp(d.temp, u.temp)}</span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Temperature arc bar chart */}
-      <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:14,padding:"14px 10px",marginBottom:16}}>
-        <div style={{fontSize:11,color:"#888",marginBottom:10,paddingLeft:4}}>Temperature curve — tap an hour for full details</div>
-        <div style={{display:"flex",alignItems:"flex-end",gap:1,height:80}}>
-          {hours.map(function(h, i) {
-            var barH = Math.max(8, ((h.temp - minH) / Math.max(maxH - minH, 1)) * 68 + 8);
-            var isSel = selHour === i;
-            var col = tc(Math.round(h.temp));
-            var isNight = h.hour < 6 || h.hour >= 21;
-            return (
-              <div key={i} onClick={function(){ setSelHour(selHour === i ? null : i); }}
-                style={{flex:1, display:"flex", flexDirection:"column", alignItems:"center", cursor:"pointer", gap:2}}>
-                <div style={{
-                  width:"100%", height:barH,
-                  background: isSel ? col : (isNight ? col+"55" : col+"99"),
-                  borderRadius:"3px 3px 0 0",
-                  outline: isSel ? "2px solid "+col : "none",
-                  boxShadow: isSel ? "0 0 8px "+col : "none",
-                  transition:"all 0.15s"
-                }}/>
-                {(i % 3 === 0) && <div style={{fontSize:8,color:isSel?"#fff":"#555",marginTop:1}}>{h.timeStr}</div>}
-              </div>
-            );
-          })}
+    <div onClick={function(){setSel(sel===i?null:i);}} style={{background:isSel?bgc(d.temp):"rgba(255,255,255,0.03)",border:"1px solid "+(isC?color+"66":isN?color+"44":"rgba(255,255,255,0.08)"),borderRadius:12,padding:"13px 11px 11px",cursor:"pointer",transition:"all 0.2s",transform:isSel?"scale(1.03)":"scale(1)",boxShadow:isSel?"0 6px 24px "+color+"28":"none"}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:7}}>
+        <div>
+          <div style={{fontSize:11,color:"#bbb",letterSpacing:1,textTransform:"uppercase",fontWeight:"bold"}}>{d.date.split(" ").slice(0,2).join(" ")}</div>
+          <div style={{fontSize:10,color:"#666",marginTop:1}}>{d.date.split(" ").slice(2).join(" ")}</div>
         </div>
-        {/* Temp scale */}
-        <div style={{display:"flex",justifyContent:"space-between",marginTop:4,fontSize:9,color:"#555",paddingLeft:2,paddingRight:2}}>
-          <span>{fmtTemp(Math.round(minH), u.temp)} min</span>
-          <span>{fmtTemp(Math.round(maxH), u.temp)} max</span>
+        <div style={{textAlign:"right"}}>
+          <span style={{fontSize:20}}>{d.condition}</span>
+          {storm&&<div style={{fontSize:9,color:"#ffcc00",marginTop:1}}>storm risk</div>}
         </div>
       </div>
-
-      {/* Hourly list */}
-      <div style={{display:"flex",flexDirection:"column",gap:6}}>
-        {hours.map(function(h, i) {
-          var isSel = selHour === i;
-          var col = tc(Math.round(h.temp));
-          var isNight = h.hour < 6 || h.hour >= 21;
-          var uvInfo = uvLabel(h.uv);
-          var shadeTemp = Math.round(h.temp + condBonus("☁️", h.temp, true) + humBonus(h.humidity) + windBonus(h.windMph));
-          var sunTemp   = Math.round(h.temp + condBonus(h.condition, h.temp, false) + humBonus(h.humidity) + windBonus(h.windMph));
-          var hasSunHr  = hasSun(h.condition);
-
-          return (
-            <div key={i} onClick={function(){ setSelHour(selHour === i ? null : i); }}
-              style={{
-                background: isSel ? bgc(Math.round(h.temp)) : (isNight ? "rgba(255,255,255,0.015)" : "rgba(255,255,255,0.03)"),
-                border: "1px solid " + (isSel ? col+"55" : "rgba(255,255,255,0.07)"),
-                borderRadius:11, padding: isSel ? "14px" : "10px 14px",
-                cursor:"pointer", transition:"all 0.2s",
-              }}>
-
-              {/* Collapsed row */}
-              <div style={{display:"flex",alignItems:"center",gap:10}}>
-                {/* Time */}
-                <div style={{width:44,flexShrink:0}}>
-                  <div style={{fontSize:13,fontWeight:"bold",color:isNight?"#666":"#ccc"}}>{h.timeStr}</div>
-                  <div style={{fontSize:9,color:"#444"}}>{isNight ? "Night" : h.hour < 12 ? "AM" : "PM"}</div>
-                </div>
-                {/* Emoji */}
-                <span style={{fontSize:22,flexShrink:0}}>{h.condition}</span>
-                {/* Temp */}
-                <div style={{flexShrink:0,minWidth:46}}>
-                  <div style={{fontSize:18,fontWeight:"bold",color:col,lineHeight:1}}>{fmtTemp(Math.round(h.temp), u.temp)}</div>
-                  <div style={{fontSize:9,color:"#666"}}>feels {fmtTemp(h.feelsLike, u.temp)}</div>
-                </div>
-                {/* Mini stats */}
-                <div style={{flex:1,display:"flex",gap:10,flexWrap:"wrap",fontSize:10}}>
-                  <span style={{color:rc(h.rainChance)}}>{h.rainChance}% rain</span>
-                  {h.rainMm > 0 && <span style={{color:rc(h.rainChance)}}>{fmtRain(h.rainMm, u.rain)}</span>}
-                  <span style={{color:wc(h.windMph)}}>{fmtSpeed(h.windMph, u.speed)}</span>
-                  <span style={{color:hc(h.humidity)}}>{h.humidity}% hum</span>
-                </div>
-                {/* Expand arrow */}
-                <span style={{fontSize:10,color:"#555",flexShrink:0}}>{isSel ? "▲" : "▼"}</span>
-              </div>
-
-              {/* Expanded detail */}
-              {isSel && (
-                <div style={{marginTop:14,borderTop:"1px solid rgba(255,255,255,0.07)",paddingTop:12}}>
-
-                  {/* Feel-like box */}
-                  <div style={{background:"rgba(0,0,0,0.3)",borderRadius:10,padding:"10px 12px",marginBottom:12,display:"flex",gap:20,flexWrap:"wrap"}}>
-                    {hasSunHr && (
-                      <div>
-                        <div style={{fontSize:9,color:"#ffd060",textTransform:"uppercase",letterSpacing:1,marginBottom:2}}>Feels in Sun</div>
-                        <div style={{fontSize:22,fontWeight:"bold",color:tc(sunTemp)}}>{fmtTemp(sunTemp, u.temp)}</div>
-                      </div>
-                    )}
-                    <div>
-                      <div style={{fontSize:9,color:"#a0b4c8",textTransform:"uppercase",letterSpacing:1,marginBottom:2}}>Feels in Shade</div>
-                      <div style={{fontSize:22,fontWeight:"bold",color:tc(shadeTemp)}}>{fmtTemp(shadeTemp, u.temp)}</div>
-                    </div>
-                    <div>
-                      <div style={{fontSize:9,color:"#aaa",textTransform:"uppercase",letterSpacing:1,marginBottom:2}}>Actual Temp</div>
-                      <div style={{fontSize:22,fontWeight:"bold",color:col}}>{fmtTemp(Math.round(h.temp), u.temp)}</div>
-                    </div>
-                  </div>
-
-                  {/* Detail grid */}
-                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"10px 20px",fontSize:12}}>
-
-                    <div style={{display:"flex",flexDirection:"column",gap:2}}>
-                      <div style={{fontSize:9,color:"#555",textTransform:"uppercase",letterSpacing:1}}>Wind</div>
-                      <div style={{color:wc(h.windMph),fontWeight:"bold"}}>{fmtSpeed(h.windMph, u.speed)} {h.windDir}</div>
-                      <div style={{fontSize:10,color:"#666"}}>{windCat(h.windMph)}</div>
-                    </div>
-
-                    <div style={{display:"flex",flexDirection:"column",gap:2}}>
-                      <div style={{fontSize:9,color:"#555",textTransform:"uppercase",letterSpacing:1}}>Gusts</div>
-                      <div style={{color:wc(h.gustMph),fontWeight:"bold"}}>{fmtSpeed(h.gustMph, u.speed)}</div>
-                      <div style={{fontSize:10,color:"#666"}}>{windCat(h.gustMph)}</div>
-                    </div>
-
-                    <div style={{display:"flex",flexDirection:"column",gap:2}}>
-                      <div style={{fontSize:9,color:"#555",textTransform:"uppercase",letterSpacing:1}}>Rain Chance</div>
-                      <div style={{color:rc(h.rainChance),fontWeight:"bold"}}>{h.rainChance}%</div>
-                      {h.rainMm > 0 && <div style={{fontSize:10,color:rc(h.rainChance)}}>{fmtRain(h.rainMm, u.rain)} expected</div>}
-                    </div>
-
-                    <div style={{display:"flex",flexDirection:"column",gap:2}}>
-                      <div style={{fontSize:9,color:"#555",textTransform:"uppercase",letterSpacing:1}}>Humidity</div>
-                      <div style={{color:hc(h.humidity),fontWeight:"bold"}}>{h.humidity}%</div>
-                      <div style={{fontSize:10,color:"#666"}}>Dew point {fmtTemp(h.dewPoint, u.temp)}</div>
-                    </div>
-
-                    <div style={{display:"flex",flexDirection:"column",gap:2}}>
-                      <div style={{fontSize:9,color:"#555",textTransform:"uppercase",letterSpacing:1}}>Pressure</div>
-                      <div style={{color:pc(h.pressure),fontWeight:"bold"}}>{fmtPres(h.pressure, u.pressure)}</div>
-                      <div style={{fontSize:10,color:"#666"}}>{h.pressure >= 1020 ? "High — settled" : h.pressure >= 1010 ? "Normal" : "Low — unsettled"}</div>
-                    </div>
-
-                    <div style={{display:"flex",flexDirection:"column",gap:2}}>
-                      <div style={{fontSize:9,color:"#555",textTransform:"uppercase",letterSpacing:1}}>UV Index</div>
-                      <div style={{color:uvInfo.color,fontWeight:"bold"}}>{h.uv} — {uvInfo.label}</div>
-                      <div style={{fontSize:10,color:"#666"}}>{h.uv === 0 ? "No UV risk" : h.uv <= 2 ? "No protection needed" : h.uv <= 5 ? "Some protection advised" : h.uv <= 7 ? "Protection essential" : "Stay in shade"}</div>
-                    </div>
-
-                    <div style={{display:"flex",flexDirection:"column",gap:2}}>
-                      <div style={{fontSize:9,color:"#555",textTransform:"uppercase",letterSpacing:1}}>Cloud Cover</div>
-                      <div style={{color:"#aaa",fontWeight:"bold"}}>{h.cloud}%</div>
-                      <div style={{fontSize:10,color:"#666"}}>{h.cloud < 20 ? "Clear sky" : h.cloud < 40 ? "Mostly clear" : h.cloud < 70 ? "Partly cloudy" : "Overcast"}</div>
-                    </div>
-
-                    <div style={{display:"flex",flexDirection:"column",gap:2}}>
-                      <div style={{fontSize:9,color:"#555",textTransform:"uppercase",letterSpacing:1}}>Visibility</div>
-                      <div style={{color:"#aabbcc",fontWeight:"bold",fontSize:11}}>{h.visibility}</div>
-                    </div>
-
-                  </div>
-
-                  {/* Comfort summary */}
-                  <div style={{marginTop:12,background:"rgba(255,255,255,0.03)",borderRadius:8,padding:"8px 10px",fontSize:11,color:"#9a8c7a",lineHeight:1.6}}>
-                    {(function(){
-                      var msgs = [];
-                      if(h.uv >= 8) msgs.push("Extreme UV — avoid prolonged sun exposure.");
-                      else if(h.uv >= 6) msgs.push("High UV — sunscreen and shade essential.");
-                      else if(h.uv >= 3) msgs.push("Moderate UV — apply sunscreen.");
-                      if(sunTemp >= 38) msgs.push("Dangerously hot in direct sun — risk of heat stress.");
-                      else if(sunTemp >= 33) msgs.push("Very hot in direct sun — stay hydrated.");
-                      else if(sunTemp >= 28) msgs.push("Warm in sun — comfortable with hydration.");
-                      if(h.rainChance >= 70) msgs.push("High chance of rain — carry an umbrella.");
-                      else if(h.rainChance >= 40) msgs.push("Rain possible — worth having a jacket.");
-                      if(h.windMph >= 20) msgs.push("Strong wind — may feel uncomfortable outdoors.");
-                      if(h.humidity >= 80) msgs.push("Very humid — heat feels heavier than indicated.");
-                      if(msgs.length === 0) msgs.push("Pleasant conditions — enjoy the weather!");
-                      return msgs.join(" ");
-                    })()}
-                  </div>
-                </div>
-              )}
+      <div style={{display:"flex",alignItems:"baseline",gap:3,marginBottom:8}}>
+        <span style={{fontSize:30,fontWeight:"bold",color:color,lineHeight:1}}>{fmtTemp(d.temp,u.temp)}</span>
+        <span style={{fontSize:11,color:"#5a7a5a",marginLeft:5}}>{"/ "+fmtTemp(d.low,u.temp)}</span>
+      </div>
+      <div style={{background:"rgba(0,0,0,0.28)",borderRadius:8,padding:"7px 9px",marginBottom:8,display:"flex",flexDirection:"column",gap:4}}>
+        {sunny&&<div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><span style={{fontSize:11,color:"#ffd060"}}>In sun</span><span style={{fontSize:14,fontWeight:"bold",color:tc(sun)}}>{fmtTemp(sun,u.temp)}</span></div>}
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><span style={{fontSize:11,color:"#a0b4c8"}}>In shade</span><span style={{fontSize:14,fontWeight:"bold",color:tc(shade)}}>{fmtTemp(shade,u.temp)}</span></div>
+      </div>
+      <div style={{display:"flex",gap:4,fontSize:10,flexWrap:"wrap",marginBottom:3}}>
+        <span style={{color:rc(d.rain)}}>{d.rain}%</span>
+        <span style={{color:rc(d.rain)}}>{fmtRain(d.rainMm,u.rain)}</span>
+        {d.rainHours>0&&<span style={{color:"#5577aa"}}>{d.rainHours}h</span>}
+      </div>
+      <div style={{display:"flex",gap:4,fontSize:10,flexWrap:"wrap",marginBottom:isSel?6:0}}>
+        <span style={{color:hc(d.humidity)}}>{d.humidity}%hum</span>
+        <span style={{color:wc(d.windMph)}}>{fmtSpd(d.windMph,u.speed)}</span>
+        <span style={{color:pc(d.pressure)}}>{fmtPres(d.pressure,u.pressure)}</span>
+      </div>
+      {isSel&&(
+        <div style={{fontSize:11,color:"#9a8c7a",marginTop:6,borderTop:"1px solid rgba(255,255,255,0.07)",paddingTop:8,lineHeight:1.7}}>
+          <div style={{marginBottom:8,color:"#bbb",fontSize:12}}>{d.note}</div>
+          <div style={{display:"flex",gap:6,marginBottom:10,flexWrap:"wrap"}}>
+            <button onClick={function(e){e.stopPropagation();setDetailView("daily");}} style={{padding:"3px 10px",fontSize:11,borderRadius:10,background:detailView==="daily"?"#ff7700":"rgba(255,255,255,0.07)",color:detailView==="daily"?"#fff":"#aaa",border:"none",cursor:"pointer"}}>Daily Summary</button>
+            <button onClick={function(e){e.stopPropagation();setDetailView("periods");}} style={{padding:"3px 10px",fontSize:11,borderRadius:10,background:detailView==="periods"?"#ff7700":"rgba(255,255,255,0.07)",color:detailView==="periods"?"#fff":"#aaa",border:"none",cursor:"pointer"}}>Morning / Afternoon / Evening</button>
+          </div>
+          {detailView==="daily"&&(
+            <div style={{display:"flex",flexDirection:"column",gap:3}}>
+              <span>Pressure: <b style={{color:pc(d.pressure)}}>{fmtPres(d.pressure,u.pressure)}</b></span>
+              <span>Rain: <b style={{color:rc(d.rain)}}>{d.rain}%</b> / <b style={{color:rc(d.rain)}}>{fmtRain(d.rainMm,u.rain)}</b>{d.rainHours>0&&<span style={{color:"#666",fontSize:10}}> {d.rainHours}h</span>}</span>
+              <span>Humidity: <b style={{color:hc(d.humidity)}}>{d.humidity}%</b></span>
+              <span>Wind: <b style={{color:wc(d.windMph)}}>{fmtSpd(d.windMph,u.speed)}</b><span style={{color:"#666",fontSize:10}}> {cat}</span></span>
+              <span style={{fontSize:10}}>Gusts: <b style={{color:wc(d.gustMph)}}>{fmtSpd(d.gustMph,u.speed)}</b></span>
             </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-// ─── Weather Graphs ───────────────────────────────────────────────────────────
-function WeatherGraphs({ forecastData, hourlyRaw, units }) {
-  const u = units;
-  const [activeGraph, setActiveGraph] = useState("temp");
-  const [hoveredIdx,  setHoveredIdx]  = useState(null);
-  const [useHourly,   setUseHourly]   = useState(false);
-
-  var hasHourly = hourlyRaw && hourlyRaw.times && hourlyRaw.times.length > 0;
-
-  // Build dataset for current graph type
-  var points = [];
-  if (useHourly && hasHourly) {
-    var sliceLen = Math.min(hourlyRaw.times.length, 16*24);
-    for (var i = 0; i < sliceLen; i++) {
-      var t = hourlyRaw.times[i];
-      var label = t.split("T")[1].slice(0,5) + " " + t.split("T")[0].slice(5);
-      var val = activeGraph==="temp"    ? Math.round(hourlyRaw.temps[i])
-              : activeGraph==="rain"    ? Math.round(hourlyRaw.rain[i]||0)
-              : activeGraph==="wind"    ? Math.round(hourlyRaw.windMph[i]||0)
-              : activeGraph==="gust"    ? Math.round(hourlyRaw.gusts[i]||0)
-              : activeGraph==="hum"     ? Math.round(hourlyRaw.humidity[i]||0)
-              : activeGraph==="pressure"? Math.round(hourlyRaw.pressure[i]||1013)
-              : activeGraph==="cloud"   ? Math.round(hourlyRaw.cloud[i]||0)
-              : activeGraph==="uv"      ? Math.round(hourlyRaw.uv[i]||0)
-              : 0;
-      points.push({ label, val, time: t });
-    }
-  } else {
-    forecastData.forEach(function(d) {
-      var val = activeGraph==="temp"    ? d.temp
-              : activeGraph==="rain"    ? d.rain
-              : activeGraph==="wind"    ? d.windMph
-              : activeGraph==="gust"    ? d.gustMph
-              : activeGraph==="hum"     ? d.humidity
-              : activeGraph==="pressure"? d.pressure
-              : activeGraph==="cloud"   ? Math.round(d.humidity * 0.7)
-              : activeGraph==="uv"      ? (d.temp>=30?8:d.temp>=25?6:d.temp>=20?4:2)
-              : 0;
-      points.push({ label: d.date, val, condition: d.condition });
-    });
-  }
-
-  var vals = points.map(function(p){ return p.val; });
-  var maxV = Math.max(...vals);
-  var minV = Math.min(...vals);
-  var range = Math.max(maxV - minV, 1);
-
-  // Find peaks (local maxima) and troughs (local minima)
-  var peaks = [], troughs = [];
-  for (var pi = 1; pi < points.length - 1; pi++) {
-    var prev = points[pi-1].val, cur = points[pi].val, next = points[pi+1].val;
-    if (cur > prev && cur > next && cur > (minV + range*0.6)) peaks.push(pi);
-    if (cur < prev && cur < next && cur < (minV + range*0.4)) troughs.push(pi);
-  }
-
-  // Colour for a value
-  function colForVal(val) {
-    if (activeGraph==="temp")     return tc(val);
-    if (activeGraph==="rain")     return rc(val);
-    if (activeGraph==="wind"||activeGraph==="gust") return wc(val);
-    if (activeGraph==="hum")      return hc(val);
-    if (activeGraph==="pressure") return pc(val);
-    if (activeGraph==="uv")       return uvLabel(val).color;
-    return "#88aacc";
-  }
-
-  function fmtVal(val) {
-    if (activeGraph==="temp")     return fmtTemp(val, u.temp);
-    if (activeGraph==="rain"||activeGraph==="hum"||activeGraph==="cloud") return val+"%";
-    if (activeGraph==="wind"||activeGraph==="gust") return fmtSpeed(val, u.speed);
-    if (activeGraph==="pressure") return fmtPres(val, u.pressure);
-    if (activeGraph==="uv")       return val+" UV";
-    return val;
-  }
-
-  var graphTabs = [
-    {id:"temp",     label:"Temperature",  icon:"🌡"},
-    {id:"rain",     label:"Rain Chance",  icon:"🌧"},
-    {id:"wind",     label:"Wind Speed",   icon:"💨"},
-    {id:"gust",     label:"Gusts",        icon:"🌬"},
-    {id:"hum",      label:"Humidity",     icon:"💧"},
-    {id:"pressure", label:"Pressure",     icon:"📊"},
-    {id:"cloud",    label:"Cloud Cover",  icon:"☁️"},
-    {id:"uv",       label:"UV Index",     icon:"☀️"},
-  ];
-
-  var svgW = 900, svgH = 220, padL = 44, padR = 16, padT = 32, padB = 28;
-  var chartW = svgW - padL - padR;
-  var chartH = svgH - padT - padB;
-  var step = chartW / Math.max(points.length - 1, 1);
-
-  function xOf(i) { return padL + i * step; }
-  function yOf(v) { return padT + chartH - ((v - minV) / range) * chartH; }
-
-  // Build SVG polyline path
-  var pathD = points.map(function(p,i){ return (i===0?"M":"L")+xOf(i).toFixed(1)+","+yOf(p.val).toFixed(1); }).join(" ");
-  var areaD = pathD + " L"+xOf(points.length-1).toFixed(1)+","+(padT+chartH)+" L"+padL+","+(padT+chartH)+" Z";
-
-  // Y-axis labels
-  var ySteps = 4;
-  var yLabels = [];
-  for (var yi = 0; yi <= ySteps; yi++) {
-    var yVal = minV + (range * yi / ySteps);
-    yLabels.push({ y: yOf(yVal), val: Math.round(yVal) });
-  }
-
-  // X-axis: show every N labels to avoid crowding
-  var xEvery = useHourly ? Math.ceil(points.length / 14) : 1;
-
-  // Condition strip for daily mode
-  var conditionStrip = !useHourly && forecastData.slice(0, points.length);
-
-  return (
-    <div>
-      <div style={{fontSize:11,letterSpacing:3,color:"#ff7700",textTransform:"uppercase",marginBottom:16}}>Weather Graphs</div>
-
-      {/* Graph type tabs */}
-      <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:14}}>
-        {graphTabs.map(function(t) {
-          var on = activeGraph===t.id;
-          return (
-            <button key={t.id} onClick={function(){ setActiveGraph(t.id); setHoveredIdx(null); }} style={{
-              padding:"5px 10px", borderRadius:20, border:"1px solid",
-              borderColor: on?"#ff7700":"rgba(255,255,255,0.12)",
-              background: on?"rgba(255,119,0,0.18)":"rgba(255,255,255,0.03)",
-              color: on?"#ffaa44":"#888", fontSize:11, cursor:"pointer"
-            }}>{t.icon} {t.label}</button>
-          );
-        })}
-      </div>
-
-      {/* Hourly / Daily toggle */}
-      <div style={{display:"flex",gap:8,marginBottom:14,alignItems:"center"}}>
-        <button onClick={function(){setUseHourly(false); setHoveredIdx(null);}} style={{padding:"4px 12px",borderRadius:10,border:"1px solid",borderColor:!useHourly?"#ff7700":"rgba(255,255,255,0.12)",background:!useHourly?"rgba(255,119,0,0.18)":"rgba(255,255,255,0.03)",color:!useHourly?"#ffaa44":"#888",fontSize:11,cursor:"pointer"}}>Daily (14 days)</button>
-        <button onClick={function(){setUseHourly(true); setHoveredIdx(null);}} style={{padding:"4px 12px",borderRadius:10,border:"1px solid",borderColor:useHourly?"#ff7700":"rgba(255,255,255,0.12)",background:useHourly?"rgba(255,119,0,0.18)":"rgba(255,255,255,0.03)",color:useHourly?"#ffaa44":"#888",fontSize:11,cursor:"pointer",opacity:hasHourly?1:0.4}}>
-          Hourly {!hasHourly?"(search a location)":""}
-        </button>
-      </div>
-
-      {/* SVG chart */}
-      <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:14,padding:"10px 4px 6px",marginBottom:16,overflowX:"auto"}}>
-        <svg viewBox={"0 0 "+svgW+" "+svgH} style={{width:"100%",minWidth:320,height:"auto",display:"block"}}
-          onMouseLeave={function(){setHoveredIdx(null);}}>
-
-          {/* Grid lines */}
-          {yLabels.map(function(yl,i){
-            return (
-              <g key={i}>
-                <line x1={padL} y1={yl.y} x2={svgW-padR} y2={yl.y} stroke="rgba(255,255,255,0.06)" strokeWidth="1"/>
-                <text x={padL-4} y={yl.y+4} textAnchor="end" fontSize="9" fill="#555">{fmtVal(yl.val)}</text>
-              </g>
-            );
-          })}
-
-          {/* Area fill */}
-          <defs>
-            <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor={colForVal(maxV)} stopOpacity="0.3"/>
-              <stop offset="100%" stopColor={colForVal(maxV)} stopOpacity="0.02"/>
-            </linearGradient>
-          </defs>
-          <path d={areaD} fill="url(#areaGrad)"/>
-
-          {/* Line */}
-          <path d={pathD} fill="none" stroke={colForVal(maxV)} strokeWidth="2" strokeLinejoin="round"/>
-
-          {/* Peak markers */}
-          {peaks.map(function(pi){
-            return (
-              <g key={"pk"+pi}>
-                <circle cx={xOf(pi)} cy={yOf(points[pi].val)} r="4" fill={colForVal(points[pi].val)} opacity="0.9"/>
-                <text x={xOf(pi)} y={yOf(points[pi].val)-8} textAnchor="middle" fontSize="9" fill={colForVal(points[pi].val)} fontWeight="bold">{fmtVal(points[pi].val)}</text>
-                <text x={xOf(pi)} y={yOf(points[pi].val)-18} textAnchor="middle" fontSize="8" fill="#888">▲</text>
-              </g>
-            );
-          })}
-
-          {/* Trough markers */}
-          {troughs.map(function(ti){
-            return (
-              <g key={"tr"+ti}>
-                <circle cx={xOf(ti)} cy={yOf(points[ti].val)} r="3" fill="#4a9fd4" opacity="0.8"/>
-                <text x={xOf(ti)} y={yOf(points[ti].val)+16} textAnchor="middle" fontSize="9" fill="#4a9fd4">{fmtVal(points[ti].val)}</text>
-                <text x={xOf(ti)} y={yOf(points[ti].val)+26} textAnchor="middle" fontSize="8" fill="#4a9fd4">▼</text>
-              </g>
-            );
-          })}
-
-          {/* Hover line + dot */}
-          {hoveredIdx!==null && (
-            <g>
-              <line x1={xOf(hoveredIdx)} y1={padT} x2={xOf(hoveredIdx)} y2={padT+chartH} stroke="rgba(255,255,255,0.2)" strokeWidth="1" strokeDasharray="4,3"/>
-              <circle cx={xOf(hoveredIdx)} cy={yOf(points[hoveredIdx].val)} r="5" fill={colForVal(points[hoveredIdx].val)} stroke="#fff" strokeWidth="1.5"/>
-            </g>
           )}
-
-          {/* Invisible hover capture rects */}
-          {points.map(function(p,i){
-            return <rect key={i} x={xOf(i)-step/2} y={padT} width={step} height={chartH} fill="transparent" onMouseEnter={function(){setHoveredIdx(i);}} onClick={function(){setHoveredIdx(hoveredIdx===i?null:i);}} style={{cursor:"crosshair"}}/>;
-          })}
-
-          {/* X-axis labels */}
-          {points.map(function(p,i){
-            if (i % xEvery !== 0) return null;
-            var lbl = useHourly ? p.label.split(" ")[0] : p.label.split(" ").slice(0,2).join(" ");
-            return <text key={i} x={xOf(i)} y={svgH-4} textAnchor="middle" fontSize="8" fill="#555" transform={"rotate(-30,"+xOf(i)+","+(svgH-4)+")"}>{lbl}</text>;
-          })}
-        </svg>
-
-        {/* Hover tooltip */}
-        {hoveredIdx!==null && (
-          <div style={{textAlign:"center",padding:"6px 0 2px",fontSize:12,color:"#ccc"}}>
-            <span style={{color:"#888"}}>{points[hoveredIdx].label}</span>
-            <span style={{color:colForVal(points[hoveredIdx].val),fontWeight:"bold",marginLeft:10,fontSize:16}}>{fmtVal(points[hoveredIdx].val)}</span>
-            {!useHourly && points[hoveredIdx].condition && <span style={{marginLeft:8,fontSize:18}}>{points[hoveredIdx].condition}</span>}
-          </div>
-        )}
-      </div>
-
-      {/* 14-day condition strip */}
-      <div style={{background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:12,padding:"12px 14px",marginBottom:16}}>
-        <div style={{fontSize:11,color:"#888",marginBottom:10,letterSpacing:2,textTransform:"uppercase"}}>Conditions — Next 14 Days</div>
-        <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-          {forecastData.slice(0,14).map(function(d,i){
-            var isC=d.type==="confirmed", isN=d.type==="near";
-            var col = tc(d.temp);
-            return (
-              <div key={i} style={{
-                display:"flex",flexDirection:"column",alignItems:"center",gap:3,
-                padding:"8px 6px",borderRadius:10,minWidth:46,flex:"1 1 46px",
-                background: isC?"rgba(255,119,0,0.1)":isN?"rgba(74,159,212,0.07)":"rgba(255,255,255,0.02)",
-                border:"1px solid "+(isC?col+"44":isN?col+"22":"rgba(255,255,255,0.06)")
-              }}>
-                <div style={{fontSize:9,color:"#666",textAlign:"center"}}>{d.date.split(" ").slice(0,2).join(" ")}</div>
-                <div style={{fontSize:20}}>{d.condition}</div>
-                <div style={{fontSize:12,fontWeight:"bold",color:col}}>{fmtTemp(d.temp,u.temp)}</div>
-                <div style={{fontSize:10,color:"#5a7a5a"}}>{fmtTemp(d.low,u.temp)}</div>
-                {d.rain>=40&&<div style={{fontSize:9,color:rc(d.rain)}}>{d.rain}%</div>}
-              </div>
-            );
-          })}
+          {detailView==="periods"&&(
+            <div style={{display:"flex",flexDirection:"column",gap:8}}>
+              {["morning","afternoon","evening"].map(function(pk){
+                var p=periods[pk];
+                return <div key={pk} style={{background:"rgba(0,0,0,0.22)",padding:"8px 10px",borderRadius:8,borderLeft:"3px solid "+tc(p.temp)}}>
+                  <div style={{fontSize:11,color:"#ddd",marginBottom:3}}>{p.time} {p.condition}</div>
+                  <div style={{display:"flex",justifyContent:"space-between",fontSize:12}}><b style={{color:tc(p.temp)}}>{fmtTemp(p.temp,u.temp)}</b><span style={{color:rc(p.rain)}}>{p.rain}% {fmtRain(p.rainMm,u.rain)}</span></div>
+                  <div style={{fontSize:10,color:wc(p.windMph),marginTop:2}}>{fmtSpd(p.windMph,u.speed)}</div>
+                  <div style={{fontSize:10,color:"#888",marginTop:1}}>{p.note}</div>
+                </div>;
+              })}
+            </div>
+          )}
+          {isC&&<div style={{color:"#ff7700",marginTop:5,fontSize:10}}>Confirmed forecast</div>}
+          {isN&&<div style={{color:"#4a9fd4",marginTop:5,fontSize:10}}>Near-term forecast</div>}
         </div>
-      </div>
-
-      {/* Stats summary */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:8}}>
-        {(function(){
-          var temps = forecastData.map(function(d){return d.temp;});
-          var lows  = forecastData.map(function(d){return d.low;});
-          var maxTemp = Math.max(...temps), minTemp = Math.min(...temps);
-          var maxLow  = Math.max(...lows),  minLow  = Math.min(...lows);
-          var avgTemp = Math.round(temps.reduce(function(a,b){return a+b;},0)/temps.length);
-          var rainyDays = forecastData.filter(function(d){return d.rain>=50;}).length;
-          var sunnyDays = forecastData.filter(function(d){return d.condition.includes("☀")||d.condition.includes("🌡")||d.condition.includes("🌤");}).length;
-          var totalRain = forecastData.reduce(function(a,d){return a+d.rainMm;},0);
-          var stats = [
-            {icon:"🔥",label:"Peak High",  val:fmtTemp(maxTemp,u.temp), col:tc(maxTemp)},
-            {icon:"❄️",label:"Lowest High", val:fmtTemp(minTemp,u.temp), col:tc(minTemp)},
-            {icon:"📊",label:"Avg High",   val:fmtTemp(avgTemp,u.temp), col:tc(avgTemp)},
-            {icon:"🌙",label:"Warmest Low", val:fmtTemp(maxLow,u.temp),  col:tc(maxLow)},
-            {icon:"🌧",label:"Rainy Days",  val:rainyDays+" days",       col:"#66aaff"},
-            {icon:"☀️",label:"Sunny Days",  val:sunnyDays+" days",       col:"#ffcc00"},
-            {icon:"💦",label:"Total Rain",  val:fmtRain(totalRain,u.rain),col:"#88ccff"},
-          ];
-          return stats.map(function(s,i){
-            return (
-              <div key={i} style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:10,padding:"10px 12px"}}>
-                <div style={{fontSize:16,marginBottom:4}}>{s.icon}</div>
-                <div style={{fontSize:9,color:"#666",textTransform:"uppercase",letterSpacing:1,marginBottom:3}}>{s.label}</div>
-                <div style={{fontSize:18,fontWeight:"bold",color:s.col}}>{s.val}</div>
-              </div>
-            );
-          });
-        })()}
-      </div>
+      )}
     </div>
   );
 }
 
+// ── Graph bar chart (shared) ──────────────────────────────────────────────────
+function BarChart(props){
+  var forecastData=props.forecastData,graph=props.graph,u=props.u,sel=props.sel,setSel=props.setSel,isLondon=props.isLondon;
+  var n=forecastData.length;
+  var CHART_H=143;
+  var maxT=n>0?Math.max.apply(null,forecastData.map(function(d){return d.temp;})):40;
+  var minT=n>0?Math.min.apply(null,forecastData.map(function(d){return d.temp;})):10;
+  var maxP=n>0?Math.max.apply(null,forecastData.map(function(d){return d.pressure;})):1035;
+  var minP=n>0?Math.min.apply(null,forecastData.map(function(d){return d.pressure;})):995;
+  var maxRmm=n>0?Math.max.apply(null,forecastData.map(function(d){return d.rainMm;})):1;
 
-// ─── Map & Radar ──────────────────────────────────────────────────────────────
-function MapRadar({ locationName, forecastData }) {
-  const [layer, setLayer] = useState("clouds");
-  const layers = [
-    {id:"clouds",   label:"Cloud Cover",  wl:"clouds_new"},
-    {id:"precip",   label:"Precipitation",wl:"precipitation_new"},
-    {id:"pressure", label:"Pressure",     wl:"pressure_new"},
-    {id:"wind",     label:"Wind Speed",   wl:"wind_new"},
-    {id:"temp",     label:"Temperature",  wl:"temp_new"},
+  var MONTH_RECORDS=[
+    {temp:32.8,label:"MAY REC 32.8",color:"rgba(255,160,0,0.85)",startIdx:0,endIdx:6},
+    {temp:35.6,label:"JUN REC 35.6",color:"rgba(255,80,0,0.85)",startIdx:7,endIdx:36},
+    {temp:40.2,label:"JUL REC 40.2",color:"rgba(200,0,255,0.85)",startIdx:37,endIdx:61},
   ];
-  var lat = 51.5074, lon = -0.1278, zoom = 5;
-  var tile = layers.find(function(l){return l.id===layer;}) || layers[0];
-  var apiKey = "ae1c71166a78c7c450b495408e5e0d53";
-  var owmUrl = "https://tile.openweathermap.org/map/"+tile.wl+"/{z}/{x}/{y}.png?appid="+apiKey;
-  var locSafe = locationName.split(",")[0].replace(/['"]/g, "");
-  var mapHtml = [
-    "<!DOCTYPE html><html><head>",
-    "<link rel='stylesheet' href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'/>",
-    "<script src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'><\/script>",
-    "<style>body{margin:0;background:#0a0a1a}#m{height:100vh}</style></head><body>",
-    "<div id='m'></div><script>",
-    "var map=L.map('m',{zoomControl:true}).setView(["+lat+","+lon+"],"+zoom+");",
-    "L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'OSM',opacity:0.7}).addTo(map);",
-    "L.tileLayer('"+owmUrl+"',{opacity:0.6,attribution:'OpenWeatherMap'}).addTo(map);",
-    "L.marker(["+lat+","+lon+"]).addTo(map).bindPopup('"+locSafe+"').openPopup();",
-    "<\/script></body></html>"
-  ].join("");
+
+  var gd;
+  if(graph==="rain"){gd={values:forecastData.map(function(d){return d.rain;}),colors:forecastData.map(function(d){return rc(d.rain);}),max:100};}
+  else if(graph==="rainmm"){gd={values:forecastData.map(function(d){return d.rainMm;}),colors:forecastData.map(function(d){return rc(d.rain);}),max:Math.max(maxRmm,1)};}
+  else if(graph==="humidity"){gd={values:forecastData.map(function(d){return d.humidity;}),colors:forecastData.map(function(d){return hc(d.humidity);}),max:100};}
+  else if(graph==="wind"){gd={values:forecastData.map(function(d){return d.windMph;}),colors:forecastData.map(function(d){return wc(d.windMph);}),max:Math.max(40,Math.max.apply(null,forecastData.map(function(d){return d.windMph;})))};}
+  else if(graph==="pressure"){gd={values:forecastData.map(function(d){return d.pressure;}),colors:forecastData.map(function(d){return pc(d.pressure);}),max:maxP};}
+  else{gd={values:forecastData.map(function(d){return d.temp;}),colors:forecastData.map(function(d){return tc(d.temp);}),max:maxT};}
 
   return (
-    <div>
-      <div style={{fontSize:11,letterSpacing:3,color:"#ff7700",textTransform:"uppercase",marginBottom:16}}>Map and Radar</div>
-      <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:12}}>
-        {layers.map(function(l){
-          var on=layer===l.id;
-          return <button key={l.id} onClick={function(){setLayer(l.id);}} style={{padding:"5px 11px",borderRadius:20,border:"1px solid",borderColor:on?"#ff7700":"rgba(255,255,255,0.12)",background:on?"rgba(255,119,0,0.18)":"rgba(255,255,255,0.03)",color:on?"#ffaa44":"#888",fontSize:11,cursor:"pointer"}}>{l.label}</button>;
+    <div style={{position:"relative",height:155}}>
+      {graph==="temp"&&isLondon&&MONTH_RECORDS.map(function(rec,ri){
+        var bPx=((rec.temp-minT)/(maxT-minT))*CHART_H+6;
+        var bPct=(bPx/155)*100;
+        var lPct=(rec.startIdx/n)*100;
+        var rPct=((n-1-rec.endIdx)/n)*100;
+        var lbl=rec.label+(u.temp==="F"?" ("+cvtTemp(rec.temp,"F")+"F)":"C");
+        return <div key={ri} style={{position:"absolute",bottom:bPct+"%",left:lPct+"%",right:rPct+"%",borderTop:"1px dashed "+rec.color,zIndex:2,pointerEvents:"none"}}><span style={{fontSize:9,color:rec.color,position:"absolute",right:0,top:-13,background:"rgba(10,10,26,0.85)",padding:"1px 5px",borderRadius:3,whiteSpace:"nowrap"}}>{lbl}</span></div>;
+      })}
+      {graph==="pressure"&&[1000,1010,1020,1030].map(function(ref){
+        var pct=Math.min(Math.max(((ref-minP)/(maxP-minP))*90+6,2),98);
+        return <div key={ref} style={{position:"absolute",bottom:pct+"%",left:0,right:0,borderTop:"1px dashed rgba(255,255,255,0.13)",zIndex:2,pointerEvents:"none"}}><span style={{fontSize:9,color:"#555",position:"absolute",left:0,top:-11,background:"rgba(10,10,26,0.85)",padding:"1px 4px",borderRadius:2}}>{fmtPres(ref,u.pressure)}</span></div>;
+      })}
+      <div style={{display:"flex",alignItems:"flex-end",gap:2,height:"100%"}}>
+        {forecastData.map(function(d,i){
+          var val=gd.values[i],col=gd.colors[i];
+          var h=Math.max(4,graph==="pressure"?((val-minP)/(maxP-minP))*90+6:(val/gd.max)*90+6);
+          var isSel=sel===i,isC=d.type==="confirmed",isN=d.type==="near";
+          return <div key={i} onClick={function(){setSel(sel===i?null:i);}} style={{flex:1,height:h+"%",background:isC?"linear-gradient(to top,"+col+",rgba(255,255,255,0.5))":isN?"linear-gradient(to top,"+col+"ee,"+col+"88)":"linear-gradient(to top,"+col+"cc,"+col+"55)",borderRadius:"3px 3px 0 0",cursor:"pointer",outline:isSel?"2px solid "+col:"none",boxShadow:isC?"0 0 8px "+col+"77":isSel?"0 0 6px "+col+"55":"none",opacity:isSel?1:0.88,transition:"all 0.15s",minWidth:0}}/>;
         })}
       </div>
-      <div style={{borderRadius:14,overflow:"hidden",border:"1px solid rgba(255,255,255,0.1)",height:400,marginBottom:16}}>
-        <iframe key={layer} srcDoc={mapHtml} style={{width:"100%",height:"100%",border:"none"}} title="Weather Map"/>
-      </div>
-      {forecastData.length>0&&(
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:8}}>
-          {forecastData.slice(0,6).map(function(d,i){
-            return <div key={i} style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:10,padding:"10px",textAlign:"center"}}>
-              <div style={{fontSize:9,color:"#666",marginBottom:3}}>{d.date.split(" ").slice(0,2).join(" ")}</div>
-              <div style={{fontSize:22}}>{d.condition}</div>
-              <div style={{fontSize:15,fontWeight:"bold",color:tc(d.temp)}}>{d.temp}°C</div>
-              <div style={{fontSize:10,color:"#5a7a5a"}}>↓{d.low}°C</div>
-              <div style={{fontSize:10,color:rc(d.rain),marginTop:2}}>{d.rain}%</div>
-            </div>;
-          })}
-        </div>
-      )}
+      {sel!==null&&(function(){
+        var d=forecastData[sel],bx=(sel/(n-1))*100,fl=bx>62;
+        return <div style={{position:"absolute",bottom:"calc(100% - 143px)",left:fl?"auto":"calc("+bx+"% + 4px)",right:fl?"calc("+(100-bx)+"% + 4px)":"auto",background:"rgba(12,16,30,0.97)",border:"1px solid "+tc(d.temp)+"55",borderRadius:10,padding:"11px 13px",minWidth:190,zIndex:10,boxShadow:"0 4px 24px rgba(0,0,0,0.65)",pointerEvents:"none"}}>
+          <div style={{fontSize:13,fontWeight:"bold",color:"#fff",marginBottom:7}}>{d.date} {d.condition}</div>
+          <div style={{display:"flex",gap:16,marginBottom:8}}>
+            <div><div style={{fontSize:9,color:"#666",textTransform:"uppercase",letterSpacing:1}}>High</div><div style={{fontSize:20,fontWeight:"bold",color:tc(d.temp)}}>{fmtTemp(d.temp,u.temp)}</div></div>
+            <div><div style={{fontSize:9,color:"#666",textTransform:"uppercase",letterSpacing:1}}>Low</div><div style={{fontSize:20,fontWeight:"bold",color:"#7bbf44"}}>{fmtTemp(d.low,u.temp)}</div></div>
+          </div>
+          <div style={{fontSize:11,color:"#aaa",display:"flex",flexDirection:"column",gap:4,lineHeight:1.4}}>
+            <span>Pressure: <b style={{color:pc(d.pressure)}}>{fmtPres(d.pressure,u.pressure)}</b></span>
+            <span>Rain: <b style={{color:rc(d.rain)}}>{d.rain}%</b> / <b style={{color:rc(d.rain)}}>{fmtRain(d.rainMm,u.rain)}</b>{d.rainHours>0&&<span style={{color:"#666",fontSize:10}}> {d.rainHours}h</span>}</span>
+            <span>Humidity: <b style={{color:hc(d.humidity)}}>{d.humidity}%</b></span>
+            <span>Wind: <b style={{color:wc(d.windMph)}}>{fmtSpd(d.windMph,u.speed)}</b> <span style={{color:"#777",fontSize:10}}>{windCat(d.windMph)}</span></span>
+            <span style={{color:"#888",fontSize:10}}>Gusts: <b style={{color:wc(d.gustMph)}}>{fmtSpd(d.gustMph,u.speed)}</b></span>
+            <span style={{color:"#9a8c7a"}}>{d.note}</span>
+          </div>
+        </div>;
+      })()}
     </div>
   );
 }
 
-// ─── Weather Extremes ─────────────────────────────────────────────────────────
-function WeatherExtremes({ forecastData, locationName, units }) {
-  const u = units;
-  const [liveRecords, setLiveRecords] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [loaded, setLoaded] = useState(false);
-  const [error, setError] = useState("");
-
-  async function loadExtremes() {
-    setLoading(true); setError(""); setLiveRecords([]);
-    try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method:"POST",
-        headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({
-          model:"claude-sonnet-4-20250514",
-          max_tokens:1000,
-          tools:[{type:"web_search_20250305",name:"web_search"}],
-          messages:[{role:"user",content:"Search for recent world weather records and extremes being broken in 2025 or 2026. Find current hottest temperature, coldest, most rainfall, strongest wind, any national or global records broken recently. Respond ONLY with valid JSON, no markdown, no preamble: {"records":[{"title":"string","value":"string","location":"string","date":"string","context":"string","icon":"emoji","color":"hex"}]} where color reflects the type (heat=red, cold=blue, rain=blue, wind=cyan)."}]
-        })
-      });
-      const data = await res.json();
-      var rawText = (data.content||[]).map(function(c){return c.type==="text"?c.text:"";}).join(""); var text = rawText.split("```json").join("").split("```").join("").trim();
-      var parsed = JSON.parse(text);
-      setLiveRecords(parsed.records||[]);
-      setLoaded(true);
-    } catch(e) {
-      setError("Could not fetch live data. Showing all-time records below.");
-      setLoaded(true);
-    }
-    setLoading(false);
-  }
-
-  var allTime = [
-    {title:"Highest Temperature",value:"56.7°C / 134°F",location:"Furnace Creek, Death Valley, USA",date:"10 Jul 1913",context:"The highest reliably recorded surface air temperature on Earth.",icon:"🔥",color:"#ff1500"},
-    {title:"Lowest Temperature",value:"-89.2°C / -128.6°F",location:"Vostok Station, Antarctica",date:"21 Jul 1983",context:"Recorded at the Soviet Antarctic research station during midwinter.",icon:"🧊",color:"#88ccff"},
-    {title:"Most Rain in 24 Hours",value:"1,825mm / 71.8 inches",location:"Cilaos, Réunion Island",date:"7-8 Jan 1966",context:"During Tropical Cyclone Denise — the highest ever 24-hour rainfall total.",icon:"🌊",color:"#4488ff"},
-    {title:"Strongest Wind Gust",value:"408 km/h / 253 mph",location:"Barrow Island, Australia",date:"10 Apr 1996",context:"Recorded during Tropical Cyclone Olivia — highest surface gust ever measured.",icon:"🌀",color:"#00ccff"},
-    {title:"Hottest Month Ever (Global)",value:"+1.51°C above pre-industrial",location:"Global Average",date:"July 2023",context:"July 2023 was the hottest month in recorded global history, shattering previous records.",icon:"🌍",color:"#ff6600"},
-    {title:"Highest Snowfall in 24h",value:"192cm / 75.8 inches",location:"Silver Lake, Colorado, USA",date:"14-15 Apr 1921",context:"The greatest single-day snowfall ever recorded at any weather station.",icon:"❄️",color:"#aaddff"},
-    {title:"Longest Drought",value:"No rain for 173 months",location:"Arica, Chile",date:"Oct 1903 – Jan 1918",context:"The Atacama Desert city went over 14 consecutive years without measurable rainfall.",icon:"🏜️",color:"#cc8833"},
-    {title:"Largest Hailstone",value:"20cm / 8in diameter",location:"Vivian, South Dakota, USA",date:"23 Jul 2010",context:"Weighed 878g (nearly 2 lbs) — the largest hailstone ever officially recorded.",icon:"⛏️",color:"#aabbcc"},
-  ];
-
-  var localExtremes = [];
-  if (forecastData.length > 0) {
-    var maxT = forecastData.reduce(function(a,d){return d.temp>a.temp?d:a;});
-    var minT = forecastData.reduce(function(a,d){return d.low<a.low?d:a;});
-    var maxR = forecastData.reduce(function(a,d){return d.rainMm>a.rainMm?d:a;});
-    var maxW = forecastData.reduce(function(a,d){return d.windMph>a.windMph?d:a;});
-    localExtremes = [
-      {title:"Forecast Peak",value:fmtTemp(maxT.temp,u.temp),location:locationName,date:maxT.date,context:"Highest temperature in the 13-day forecast.",icon:"🌡️",color:tc(maxT.temp)},
-      {title:"Overnight Low",value:fmtTemp(minT.low,u.temp),location:locationName,date:minT.date,context:"Coldest night in the forecast period.",icon:"🌙",color:"#88ccff"},
-      {title:"Heaviest Rain",value:fmtRain(maxR.rainMm,u.rain)+" ("+maxR.rain+"%)",location:locationName,date:maxR.date,context:"Most rainfall expected in a single day.",icon:"🌧",color:"#4488ff"},
-      {title:"Strongest Wind",value:fmtSpeed(maxW.windMph,u.speed),location:locationName,date:maxW.date,context:"Peak wind speed forecast. Gusts to "+fmtSpeed(maxW.gustMph,u.speed)+".",icon:"💨",color:wc(maxW.windMph)},
-    ];
-  }
-
-  function Card(r,i) {
-    return <div key={i} style={{background:"rgba(255,255,255,0.03)",border:"1px solid "+(r.color||"#555")+"44",borderRadius:12,padding:"14px",display:"flex",flexDirection:"column",gap:5}}>
-      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:2}}>
-        <span style={{fontSize:28}}>{r.icon}</span>
-        <div><div style={{fontSize:11,fontWeight:"bold",color:"#e8dcc8",lineHeight:1.3}}>{r.title}</div><div style={{fontSize:9,color:"#555",marginTop:1}}>{r.location}</div></div>
-      </div>
-      <div style={{fontSize:20,fontWeight:"bold",color:r.color||"#fff",lineHeight:1}}>{r.value}</div>
-      <div style={{fontSize:9,color:"#666"}}>{r.date}</div>
-      <div style={{fontSize:11,color:"#7a6e5e",lineHeight:1.5}}>{r.context}</div>
-    </div>;
-  }
-
+// ── Weather Overview ──────────────────────────────────────────────────────────
+function WeatherOverview(props){
+  var forecastData=props.forecastData,locationName=props.locationName,units=props.u;
+  var u=units;
+  var sel=useState(null);var iSel=sel[0];var setSel=sel[1];
+  var graph=useState("temp");var iGraph=graph[0];var setGraph=graph[1];
+  var detailV=useState("daily");var iDetailV=detailV[0];var setDetailV=detailV[1];
+  var isLondon=locationName.includes("London");
+  var tabs=[{id:"temp",label:"Temp"},{id:"rain",label:"Rain %"},{id:"rainmm",label:"Rainfall"},{id:"humidity",label:"Humidity"},{id:"wind",label:"Wind"},{id:"pressure",label:"Pressure"}];
+  var panel={background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.10)",borderRadius:16,padding:"20px 16px 14px",marginBottom:26};
   return (
     <div>
-      <div style={{fontSize:11,letterSpacing:3,color:"#ff7700",textTransform:"uppercase",marginBottom:16}}>Weather Extremes</div>
-
-      {localExtremes.length>0&&(
-        <div style={{marginBottom:24}}>
-          <div style={{fontSize:11,color:"#ff9944",letterSpacing:2,marginBottom:10}}>YOUR LOCATION — FORECAST EXTREMES</div>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(190px,1fr))",gap:8}}>
-            {localExtremes.map(function(r,i){return Card(r,i);})}
-          </div>
+      <div style={panel}>
+        <div style={{display:"flex",gap:5,marginBottom:14,flexWrap:"wrap",alignItems:"center"}}>
+          {tabs.map(function(t){var on=iGraph===t.id;return <button key={t.id} onClick={function(){setGraph(t.id);setSel(null);}} style={{padding:"5px 10px",borderRadius:20,border:"1px solid",borderColor:on?"#ff7700":"rgba(255,255,255,0.12)",background:on?"rgba(255,119,0,0.18)":"rgba(255,255,255,0.03)",color:on?"#ffaa44":"#888",fontSize:11,cursor:"pointer"}}>{t.label}</button>;})}
+          {iSel!==null&&<div style={{marginLeft:"auto",fontSize:11,color:"#aaa"}}><span style={{color:"#fff",fontWeight:"bold"}}>{forecastData[iSel].date}</span> <span style={{color:tc(forecastData[iSel].temp)}}>{fmtTemp(forecastData[iSel].temp,u.temp)}</span></div>}
         </div>
-      )}
-
-      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:8,marginBottom:12}}>
-        <div style={{fontSize:11,color:"#ff9944",letterSpacing:2}}>CURRENT WORLD RECORDS BEING BROKEN</div>
-        {!loaded&&<button onClick={loadExtremes} disabled={loading} style={{padding:"6px 14px",borderRadius:10,border:"1px solid rgba(255,119,0,0.4)",background:"rgba(255,119,0,0.12)",color:"#ffaa44",fontSize:11,cursor:loading?"wait":"pointer"}}>{loading?"Searching...":"Search Live Records"}</button>}
-        {loaded&&<button onClick={function(){setLoaded(false);setLiveRecords([]);setError("");}} style={{padding:"6px 14px",borderRadius:10,border:"1px solid rgba(255,255,255,0.12)",background:"rgba(255,255,255,0.04)",color:"#888",fontSize:11,cursor:"pointer"}}>Refresh</button>}
+        <BarChart forecastData={forecastData} graph={iGraph} u={u} sel={iSel} setSel={setSel} isLondon={isLondon}/>
+        <div style={{display:"flex",justifyContent:"space-between",marginTop:8,fontSize:10,color:"#666"}}>
+          <span>{forecastData[0]?forecastData[0].date:""}</span>
+          <span>{forecastData[Math.floor(forecastData.length/2)]?forecastData[Math.floor(forecastData.length/2)].date:""}</span>
+          <span>{forecastData[forecastData.length-1]?forecastData[forecastData.length-1].date:""}</span>
+        </div>
+        {iGraph==="temp"&&<div style={{display:"flex",justifyContent:"flex-end",gap:10,marginTop:4,fontSize:10}}>{[15,20,25,30,35,38].map(function(t){return <span key={t} style={{color:tc(t)}}>{fmtTemp(t,u.temp)}</span>;})}</div>}
+        {iGraph==="pressure"&&<div style={{display:"flex",gap:10,marginTop:5,fontSize:9,color:"#777",flexWrap:"wrap"}}><span style={{color:"#ff6600"}}>{fmtPres(1035,u.pressure)} High</span><span style={{color:"#88ddff"}}>{fmtPres(1015,u.pressure)} Normal</span><span style={{color:"#9955cc"}}>{fmtPres(1000,u.pressure)} Low</span></div>}
+        {iGraph==="wind"&&<div style={{display:"flex",gap:8,marginTop:5,fontSize:9,color:"#777",flexWrap:"wrap"}}>{[["<5","V.Light"],["5-10","Light"],["10-20","Mod"],["20-30","Strong"],["30+","Gale+"]].map(function(p){return <span key={p[0]}><span style={{color:"#ffcc88"}}>{p[0]}</span> {p[1]}</span>;})}</div>}
       </div>
-
-      {!loaded&&!loading&&<div style={{textAlign:"center",padding:"28px",color:"#555",border:"1px dashed rgba(255,255,255,0.07)",borderRadius:12,marginBottom:16,fontSize:12}}>Click "Search Live Records" to fetch current world weather extremes via AI web search.</div>}
-      {loading&&<div style={{textAlign:"center",padding:"28px",color:"#666",fontSize:12}}>Searching the web for current world weather records...</div>}
-      {error&&<div style={{color:"#ff9944",fontSize:11,padding:"8px 12px",background:"rgba(255,119,0,0.07)",borderRadius:8,marginBottom:12}}>{error}</div>}
-
-      {loaded&&liveRecords.length>0&&(
-        <div style={{marginBottom:24}}>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(190px,1fr))",gap:8,marginBottom:6}}>
-            {liveRecords.map(function(r,i){return Card(r,i);})}
-          </div>
-          <div style={{fontSize:9,color:"#333",textAlign:"center"}}>Sourced via live web search · Verify with official meteorological services</div>
-        </div>
-      )}
-
-      <div style={{marginBottom:8}}>
-        <div style={{fontSize:11,color:"#ff9944",letterSpacing:2,marginBottom:10}}>ALL-TIME WORLD RECORDS</div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(190px,1fr))",gap:8}}>
-          {allTime.map(function(r,i){return Card(r,i);})}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(155px,1fr))",gap:9}}>
+        {forecastData.map(function(d,i){return <DayCard key={i} d={d} i={i} sel={iSel} setSel={setSel} u={u} detailView={iDetailV} setDetailView={setDetailV}/>;})}
+      </div>
+      <div style={{marginTop:28,background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:14,padding:"18px"}}>
+        <div style={{fontSize:11,letterSpacing:4,color:"#ff7700",textTransform:"uppercase",marginBottom:14}}>About This Forecast</div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))",gap:14}}>
+          {[
+            {icon:"\u{1F4CA}",title:"13-Day Outlook",text:"Forecast covers 13 days. The first 3 days are high confidence. Days 4-7 are near-term estimates. Beyond day 7, treat as indicative only."},
+            {icon:"\u{1F321}\uFE0F",title:"Feel-Like Temps",text:"Feels-like temperatures account for wind chill, humidity and solar radiation. In sun vs shade can differ by 10°C or more on hot days."},
+            {icon:"\u{1F4A7}",title:"Rainfall Data",text:"Rain chance is the probability of any measurable rainfall. The mm figure is the expected total if rain falls. Both are shown for each day."},
+            {icon:"\u{1F4A8}",title:"Wind Forecasts",text:"Wind speeds are 10m surface winds. Gusts can be significantly higher. Strong Breeze (20-30 mph) can affect outdoor activities."},
+            {icon:"\u{1F30D}",title:"Data Source",text:"Forecasts are powered by Open-Meteo, a free and open weather API using ECMWF and other model data updated hourly."},
+            {icon:"\u26A1",title:"Storm Risk",text:"Storm risk is flagged when temperature exceeds 28°C and humidity exceeds 50%, creating convective instability conditions."},
+          ].map(function(r,i){return <div key={i} style={{display:"flex",gap:12}}><span style={{fontSize:22,flexShrink:0}}>{r.icon}</span><div><div style={{fontSize:13,color:"#e8dcc8",fontWeight:"bold",marginBottom:4}}>{r.title}</div><div style={{fontSize:12,color:"#7a6e5e",lineHeight:1.55}}>{r.text}</div></div></div>;})}
         </div>
       </div>
     </div>
   );
 }
 
-// ─── Coming Soon placeholder ──────────────────────────────────────────────────
-function ComingSoon({ page }) {
-  const item = NAV_ITEMS.find(function(n){ return n.id===page; });
-  return (
-    <div style={{textAlign:"center",padding:"60px 20px",color:"#555"}}>
-      <div style={{fontSize:48,marginBottom:16}}>{item?item.icon:"🔧"}</div>
-      <div style={{fontSize:20,color:"#888",marginBottom:8}}>{item?item.label:page}</div>
-      <div style={{fontSize:13,color:"#444"}}>Coming soon — check back later!</div>
-    </div>
-  );
-}
-
-// ─── 10-Day Forecast view ─────────────────────────────────────────────────────
-function TenDayForecast({ forecastData, units }) {
-  const u = units;
-  const [sel, setSel] = useState(null);
-  const [detailView, setDetailView] = useState("daily");
-  const data = forecastData.slice(0, 10);
-
+// ── 10-Day Forecast ───────────────────────────────────────────────────────────
+function TenDayForecast(props){
+  var forecastData=props.forecastData,u=props.u;
+  var sel=useState(null);var iSel=sel[0];var setSel=sel[1];
+  var dv=useState("daily");var iDv=dv[0];var setDv=dv[1];
+  var data=forecastData.slice(0,10);
   return (
     <div>
-      <div style={{fontSize:11,letterSpacing:3,color:"#ff7700",textTransform:"uppercase",marginBottom:16}}>10-Day Forecast</div>
+      <div style={{fontSize:11,letterSpacing:3,color:"#ff7700",textTransform:"uppercase",marginBottom:16}}>14-Day Forecast</div>
       <div style={{display:"flex",flexDirection:"column",gap:8}}>
         {data.map(function(d,i){
-          const color=tc(d.temp), isC=d.type==="confirmed", isN=d.type==="near", isSel=sel===i;
-          const shade=shadeFeel(d.temp,d.windMph,d.humidity,d.condition);
-          const sun=sunFeel(d.temp,d.windMph,d.humidity,d.condition);
-          const sunny=hasSun(d.condition);
-          const storm=d.humidity>=50&&d.temp>=28;
-          const barW = Math.round((d.temp/45)*100);
-          const barWLow = Math.round((d.low/45)*100);
+          var color=tc(d.temp),isC=d.type==="confirmed",isN=d.type==="near",isSel=iSel===i;
+          var bW=Math.round((d.temp/45)*100),bWL=Math.round((d.low/45)*100);
+          var shade=shadeFeel(d.temp,d.windMph,d.humidity,d.condition);
+          var sun=sunFeel(d.temp,d.windMph,d.humidity,d.condition);
+          var sunny=hasSun(d.condition);
+          var periods=getDayPeriods(d);
           return (
-            <div key={i} onClick={function(){ setSel(sel===i?null:i); }} style={{
-              background:isSel?bgc(d.temp):"rgba(255,255,255,0.03)",
-              border:"1px solid "+(isC?color+"55":isN?color+"33":"rgba(255,255,255,0.07)"),
-              borderRadius:12,padding:"12px 14px",cursor:"pointer",
-              transition:"all 0.2s",
-            }}>
-              {/* Row: date | emoji | temp bar | high/low */}
+            <div key={i} onClick={function(){setSel(iSel===i?null:i);}} style={{background:isSel?bgc(d.temp):"rgba(255,255,255,0.03)",border:"1px solid "+(isC?color+"55":isN?color+"33":"rgba(255,255,255,0.07)"),borderRadius:12,padding:"12px 14px",cursor:"pointer",transition:"all 0.2s"}}>
               <div style={{display:"flex",alignItems:"center",gap:10}}>
-                <div style={{width:80,flexShrink:0}}>
-                  <div style={{fontSize:11,color:"#bbb",fontWeight:"bold",textTransform:"uppercase"}}>{d.date.split(" ").slice(0,2).join(" ")}</div>
-                  <div style={{fontSize:10,color:"#555"}}>{d.date.split(" ").slice(2).join(" ")}</div>
-                </div>
+                <div style={{width:80,flexShrink:0}}><div style={{fontSize:11,color:"#bbb",fontWeight:"bold",textTransform:"uppercase"}}>{d.date.split(" ").slice(0,2).join(" ")}</div><div style={{fontSize:10,color:"#555"}}>{d.date.split(" ").slice(2).join(" ")}</div></div>
                 <span style={{fontSize:22,flexShrink:0}}>{d.condition}</span>
-                {storm && <span style={{fontSize:9,color:"#ffcc00"}}>storm</span>}
                 <div style={{flex:1,display:"flex",alignItems:"center",gap:6}}>
                   <span style={{fontSize:11,color:"#5a7a5a",width:34,textAlign:"right",flexShrink:0}}>{fmtTemp(d.low,u.temp)}</span>
-                  <div style={{flex:1,height:6,background:"rgba(255,255,255,0.06)",borderRadius:3,position:"relative",overflow:"hidden"}}>
-                    <div style={{position:"absolute",left:barWLow+"%",width:(barW-barWLow)+"%",height:"100%",background:"linear-gradient(to right,#4a9fd4,"+color+")",borderRadius:3}}/>
-                  </div>
-                  <span style={{fontSize:13,fontWeight:"bold",color,width:38,flexShrink:0}}>{fmtTemp(d.temp,u.temp)}</span>
+                  <div style={{flex:1,height:6,background:"rgba(255,255,255,0.06)",borderRadius:3,position:"relative",overflow:"hidden"}}><div style={{position:"absolute",left:bWL+"%",width:(bW-bWL)+"%",height:"100%",background:"linear-gradient(to right,#4a9fd4,"+color+")",borderRadius:3}}/></div>
+                  <span style={{fontSize:13,fontWeight:"bold",color:color,width:38,flexShrink:0}}>{fmtTemp(d.temp,u.temp)}</span>
                 </div>
                 <div style={{display:"flex",gap:6,fontSize:10,flexShrink:0}}>
                   <span style={{color:rc(d.rain)}}>{d.rain}%</span>
                   <span style={{color:pc(d.pressure)}}>{fmtPres(d.pressure,u.pressure)}</span>
                 </div>
               </div>
-
-              {/* Expanded detail */}
-              {isSel && (
+              {isSel&&(
                 <div style={{marginTop:12,borderTop:"1px solid rgba(255,255,255,0.07)",paddingTop:10}}>
                   <div style={{marginBottom:8,fontSize:12,color:"#bbb"}}>{d.note}</div>
                   <div style={{display:"flex",gap:6,marginBottom:10,flexWrap:"wrap"}}>
-                    <button onClick={function(e){e.stopPropagation();setDetailView("daily");}} style={{padding:"3px 10px",fontSize:11,borderRadius:10,background:detailView==="daily"?"#ff7700":"rgba(255,255,255,0.07)",color:detailView==="daily"?"#fff":"#aaa",border:"none",cursor:"pointer"}}>Daily Summary</button>
-                    <button onClick={function(e){e.stopPropagation();setDetailView("periods");}} style={{padding:"3px 10px",fontSize:11,borderRadius:10,background:detailView==="periods"?"#ff7700":"rgba(255,255,255,0.07)",color:detailView==="periods"?"#fff":"#aaa",border:"none",cursor:"pointer"}}>Morning / Afternoon / Evening</button>
+                    <button onClick={function(e){e.stopPropagation();setDv("daily");}} style={{padding:"3px 10px",fontSize:11,borderRadius:10,background:iDv==="daily"?"#ff7700":"rgba(255,255,255,0.07)",color:iDv==="daily"?"#fff":"#aaa",border:"none",cursor:"pointer"}}>Daily Summary</button>
+                    <button onClick={function(e){e.stopPropagation();setDv("periods");}} style={{padding:"3px 10px",fontSize:11,borderRadius:10,background:iDv==="periods"?"#ff7700":"rgba(255,255,255,0.07)",color:iDv==="periods"?"#fff":"#aaa",border:"none",cursor:"pointer"}}>Morning / Afternoon / Evening</button>
                   </div>
-
-                  {detailView==="daily" && (
-                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"4px 14px",fontSize:11,color:"#aaa"}}>
-                      {sunny&&<span>In sun: <b style={{color:tc(sun)}}>{fmtTemp(sun,u.temp)}</b></span>}
-                      <span>In shade: <b style={{color:tc(shade)}}>{fmtTemp(shade,u.temp)}</b></span>
-                      <span>Pressure: <b style={{color:pc(d.pressure)}}>{fmtPres(d.pressure,u.pressure)}</b></span>
-                      <span>Humidity: <b style={{color:hc(d.humidity)}}>{d.humidity}%</b></span>
-                      <span>Rain: <b style={{color:rc(d.rain)}}>{d.rain}%</b></span>
-                      <span>Rainfall: <b style={{color:rc(d.rain)}}>{fmtRain(d.rainMm,u.rain)}</b>{d.rainHours>0&&<span style={{color:"#555"}}> / {d.rainHours}h</span>}</span>
-                      <span>Wind: <b style={{color:wc(d.windMph)}}>{fmtSpeed(d.windMph,u.speed)}</b></span>
-                      <span style={{color:"#666",fontSize:10}}>Gusts: <b style={{color:wc(d.gustMph)}}>{fmtSpeed(d.gustMph,u.speed)}</b></span>
-                    </div>
-                  )}
-
-                  {detailView==="periods" && (function(){
-                    const periods=getDayPeriods(d);
-                    return (
-                      <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                        {["morning","afternoon","evening"].map(function(pKey){
-                          const p=periods[pKey];
-                          return (
-                            <div key={pKey} style={{background:"rgba(0,0,0,0.22)",padding:"8px 10px",borderRadius:8,borderLeft:"3px solid "+tc(p.temp)}}>
-                              <div style={{fontSize:11,color:"#ddd",marginBottom:3}}>{p.time} — {p.condition}</div>
-                              <div style={{display:"flex",justifyContent:"space-between",fontSize:12}}>
-                                <b style={{color:tc(p.temp)}}>{fmtTemp(p.temp,u.temp)}</b>
-                                <span style={{color:rc(p.rain)}}>{p.rain}% · {fmtRain(p.rainMm,u.rain)}</span>
-                              </div>
-                              <div style={{fontSize:10,color:wc(p.windMph),marginTop:3}}>Wind: {fmtSpeed(p.windMph,u.speed)}</div>
-                              <div style={{fontSize:10,color:"#888",marginTop:2}}>{p.note}</div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    );
-                  })()}
-
+                  {iDv==="daily"&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"4px 14px",fontSize:11,color:"#aaa"}}>
+                    {sunny&&<span>In sun: <b style={{color:tc(sun)}}>{fmtTemp(sun,u.temp)}</b></span>}
+                    <span>In shade: <b style={{color:tc(shade)}}>{fmtTemp(shade,u.temp)}</b></span>
+                    <span>Pressure: <b style={{color:pc(d.pressure)}}>{fmtPres(d.pressure,u.pressure)}</b></span>
+                    <span>Humidity: <b style={{color:hc(d.humidity)}}>{d.humidity}%</b></span>
+                    <span>Rain: <b style={{color:rc(d.rain)}}>{d.rain}%</b></span>
+                    <span>Rainfall: <b style={{color:rc(d.rain)}}>{fmtRain(d.rainMm,u.rain)}</b></span>
+                    <span>Wind: <b style={{color:wc(d.windMph)}}>{fmtSpd(d.windMph,u.speed)}</b></span>
+                    <span style={{fontSize:10}}>Gusts: <b style={{color:wc(d.gustMph)}}>{fmtSpd(d.gustMph,u.speed)}</b></span>
+                  </div>}
+                  {iDv==="periods"&&<div style={{display:"flex",flexDirection:"column",gap:8}}>{["morning","afternoon","evening"].map(function(pk){var p=periods[pk];return <div key={pk} style={{background:"rgba(0,0,0,0.22)",padding:"8px 10px",borderRadius:8,borderLeft:"3px solid "+tc(p.temp)}}><div style={{fontSize:11,color:"#ddd",marginBottom:3}}>{p.time} {p.condition}</div><div style={{display:"flex",justifyContent:"space-between",fontSize:12}}><b style={{color:tc(p.temp)}}>{fmtTemp(p.temp,u.temp)}</b><span style={{color:rc(p.rain)}}>{p.rain}% {fmtRain(p.rainMm,u.rain)}</span></div><div style={{fontSize:10,color:wc(p.windMph),marginTop:2}}>{fmtSpd(p.windMph,u.speed)}</div></div>;})}</div>}
                   {isC&&<div style={{color:"#ff7700",marginTop:8,fontSize:10}}>Confirmed forecast</div>}
                   {isN&&<div style={{color:"#4a9fd4",marginTop:8,fontSize:10}}>Near-term forecast</div>}
                 </div>
@@ -1092,318 +481,408 @@ function TenDayForecast({ forecastData, units }) {
   );
 }
 
-// ─── Weather Overview (main view) ─────────────────────────────────────────────
-function WeatherOverview({ forecastData, locationName, dateRange, units }) {
-  const u   = units;
-  const n   = forecastData.length;
-  const CHART_H = 143;
-  const [sel,   setSel]   = useState(null);
-  const [graph, setGraph] = useState("temp");
-  const [detailView, setDetailView] = useState("daily");
-
-  const maxT  = n>0?Math.max(...forecastData.map(d=>d.temp)):40;
-  const minT  = n>0?Math.min(...forecastData.map(d=>d.temp)):10;
-  const maxP  = n>0?Math.max(...forecastData.map(d=>d.pressure)):1035;
-  const minP  = n>0?Math.min(...forecastData.map(d=>d.pressure)):995;
-  const maxRmm= n>0?Math.max(...forecastData.map(d=>d.rainMm)):1;
-
-  const tabs = [{id:"temp",label:"Temp"},{id:"rain",label:"Rain %"},{id:"rainmm",label:"Rainfall"},{id:"humidity",label:"Humidity"},{id:"wind",label:"Wind"},{id:"pressure",label:"Pressure"}];
-
-  const gd = graph==="rain"    ?{values:forecastData.map(d=>d.rain),    colors:forecastData.map(d=>rc(d.rain)),    max:100}
-           : graph==="rainmm"  ?{values:forecastData.map(d=>d.rainMm),  colors:forecastData.map(d=>rc(d.rain)),    max:Math.max(maxRmm,1)}
-           : graph==="humidity"?{values:forecastData.map(d=>d.humidity),colors:forecastData.map(d=>hc(d.humidity)),max:100}
-           : graph==="wind"    ?{values:forecastData.map(d=>d.windMph), colors:forecastData.map(d=>wc(d.windMph)), max:Math.max(40,...forecastData.map(d=>d.windMph))}
-           : graph==="pressure"?{values:forecastData.map(d=>d.pressure),colors:forecastData.map(d=>pc(d.pressure)),max:maxP}
-           :                    {values:forecastData.map(d=>d.temp),    colors:forecastData.map(d=>tc(d.temp)),    max:maxT};
-
-  const isLondon = locationName.includes("London");
-  const panel = {background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.10)",borderRadius:16,padding:"20px 16px 14px",marginBottom:26};
-  const grid  = {display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(155px,1fr))",gap:9};
-
+// ── Hourly Forecast ───────────────────────────────────────────────────────────
+function HourlyForecast(props){
+  var forecastData=props.forecastData,hourlyRaw=props.hourlyRaw,u=props.u;
+  var sd=useState(0);var iSd=sd[0];var setSd=sd[1];
+  var sh=useState(null);var iSh=sh[0];var setSh=sh[1];
+  useEffect(function(){setSd(0);setSh(null);},[forecastData]);
+  var hours=buildHourly(forecastData,hourlyRaw,iSd);
+  var maxH=hours.length>0?Math.max.apply(null,hours.map(function(h){return h.temp;})):30;
+  var minH=hours.length>0?Math.min.apply(null,hours.map(function(h){return h.temp;})):10;
   return (
     <div>
-      {/* Graph panel */}
-      <div style={panel}>
-        <div style={{display:"flex",gap:5,marginBottom:14,flexWrap:"wrap",alignItems:"center"}}>
-          {tabs.map(function(t){
-            return <button key={t.id} onClick={function(){setGraph(t.id);}} style={{padding:"5px 10px",borderRadius:20,border:"1px solid",borderColor:graph===t.id?"#ff7700":"rgba(255,255,255,0.12)",background:graph===t.id?"rgba(255,119,0,0.18)":"rgba(255,255,255,0.03)",color:graph===t.id?"#ffaa44":"#888",fontSize:11,cursor:"pointer"}}>{t.label}</button>;
-          })}
-          {sel!==null&&(
-            <div style={{marginLeft:"auto",fontSize:11,color:"#aaa"}}>
-              <span style={{color:"#fff",fontWeight:"bold"}}>{forecastData[sel].date}</span>
-              <span style={{color:tc(forecastData[sel].temp),marginLeft:6}}>H:{fmtTemp(forecastData[sel].temp,u.temp)}</span>
-              <span style={{color:"#7bbf44",marginLeft:5}}>L:{fmtTemp(forecastData[sel].low,u.temp)}</span>
-            </div>
-          )}
-        </div>
-
-        <div style={{position:"relative",height:155}}>
-          {graph==="temp"&&isLondon&&MONTH_RECORDS.map(function(rec,ri){
-            const bPx=((rec.temp-minT)/(maxT-minT))*CHART_H+6;
-            const bPct=(bPx/155)*100;
-            const lPct=(rec.startIdx/n)*100;
-            const rPct=((n-1-rec.endIdx)/n)*100;
-            const lbl=rec.label+(u.temp==="F"?" ("+cvtTemp(rec.temp,"F")+"F)":"C");
-            return <div key={ri} style={{position:"absolute",bottom:bPct+"%",left:lPct+"%",right:rPct+"%",borderTop:"1px dashed "+rec.color,zIndex:2,pointerEvents:"none"}}><span style={{fontSize:9,color:rec.color,position:"absolute",right:0,top:-13,background:"rgba(10,10,26,0.85)",padding:"1px 5px",borderRadius:3,whiteSpace:"nowrap"}}>{lbl}</span></div>;
-          })}
-          {graph==="pressure"&&[1000,1010,1020,1030].map(function(ref){
-            const pct=Math.min(Math.max(((ref-minP)/(maxP-minP))*90+6,2),98);
-            return <div key={ref} style={{position:"absolute",bottom:pct+"%",left:0,right:0,borderTop:"1px dashed rgba(255,255,255,0.13)",zIndex:2,pointerEvents:"none"}}><span style={{fontSize:9,color:"#555",position:"absolute",left:0,top:-11,background:"rgba(10,10,26,0.85)",padding:"1px 4px",borderRadius:2}}>{fmtPres(ref,u.pressure)}</span></div>;
-          })}
-
-          <div style={{display:"flex",alignItems:"flex-end",gap:2,height:"100%"}}>
-            {forecastData.map(function(d,i){
-              const val=gd.values[i],col=gd.colors[i];
-              const h=Math.max(4,graph==="pressure"?((val-minP)/(maxP-minP))*90+6:(val/gd.max)*90+6);
-              const isSel=sel===i,isC=d.type==="confirmed",isN=d.type==="near";
-              return <div key={i} onClick={function(){setSel(sel===i?null:i);}} style={{flex:1,height:h+"%",background:isC?("linear-gradient(to top,"+col+",rgba(255,255,255,0.5))"):isN?("linear-gradient(to top,"+col+"ee,"+col+"88)"):("linear-gradient(to top,"+col+"cc,"+col+"55)"),borderRadius:"3px 3px 0 0",cursor:"pointer",outline:isSel?"2px solid "+col:"none",boxShadow:isC?"0 0 8px "+col+"77":isSel?"0 0 6px "+col+"55":"none",opacity:isSel?1:0.88,transition:"all 0.15s",minWidth:0}}/>;
-            })}
-          </div>
-
-          {sel!==null&&(function(){
-            const d=forecastData[sel],bx=(sel/(n-1))*100,fl=bx>62;
-            return (
-              <div style={{position:"absolute",bottom:"calc(100% - 143px)",left:fl?"auto":"calc("+bx+"% + 4px)",right:fl?"calc("+(100-bx)+"% + 4px)":"auto",background:"rgba(12,16,30,0.97)",border:"1px solid "+tc(d.temp)+"55",borderRadius:10,padding:"11px 13px",minWidth:190,zIndex:10,boxShadow:"0 4px 24px rgba(0,0,0,0.65)",pointerEvents:"none"}}>
-                <div style={{fontSize:13,fontWeight:"bold",color:"#fff",marginBottom:7}}>{d.date} {d.condition}</div>
-                <div style={{display:"flex",gap:16,marginBottom:8}}>
-                  <div><div style={{fontSize:9,color:"#666",textTransform:"uppercase",letterSpacing:1}}>High</div><div style={{fontSize:20,fontWeight:"bold",color:tc(d.temp)}}>{fmtTemp(d.temp,u.temp)}</div></div>
-                  <div><div style={{fontSize:9,color:"#666",textTransform:"uppercase",letterSpacing:1}}>Low</div><div style={{fontSize:20,fontWeight:"bold",color:"#7bbf44"}}>{fmtTemp(d.low,u.temp)}</div></div>
-                </div>
-                <div style={{fontSize:11,color:"#aaa",display:"flex",flexDirection:"column",gap:4,lineHeight:1.4}}>
-                  <span>Pressure: <b style={{color:pc(d.pressure)}}>{fmtPres(d.pressure,u.pressure)}</b></span>
-                  <span>Rain: <b style={{color:rc(d.rain)}}>{d.rain}%</b> / <b style={{color:rc(d.rain)}}>{fmtRain(d.rainMm,u.rain)}</b>{d.rainHours>0&&<span style={{color:"#666",fontSize:10}}> {d.rainHours}h</span>}</span>
-                  <span>Humidity: <b style={{color:hc(d.humidity)}}>{d.humidity}%</b></span>
-                  <span>Wind: <b style={{color:wc(d.windMph)}}>{fmtSpeed(d.windMph,u.speed)}</b> <span style={{color:"#777",fontSize:10}}>{windCat(d.windMph)}</span></span>
-                  <span style={{color:"#888",fontSize:10}}>Gusts: <b style={{color:wc(d.gustMph)}}>{fmtSpeed(d.gustMph,u.speed)}</b></span>
-                  <span style={{color:"#9a8c7a"}}>{d.note}</span>
-                </div>
-              </div>
-            );
-          })()}
-        </div>
-
-        <div style={{display:"flex",justifyContent:"space-between",marginTop:8,fontSize:10,color:"#666"}}>
-          <span>{n>0?forecastData[0].date:""}</span>
-          <span>{n>0?forecastData[Math.floor(n/2)].date:""}</span>
-          <span>{n>0?forecastData[n-1].date:""}</span>
-        </div>
-        {graph==="temp"&&<div style={{display:"flex",justifyContent:"flex-end",gap:10,marginTop:4,fontSize:10}}>{[15,20,25,30,35,38].map(function(t){return <span key={t} style={{color:tc(t)}}>{fmtTemp(t,u.temp)}</span>;})}</div>}
-        {graph==="pressure"&&<div style={{display:"flex",gap:10,marginTop:5,fontSize:9,color:"#777",flexWrap:"wrap"}}><span><span style={{color:"#ff6600"}}>{fmtPres(1035,u.pressure)}</span> High/Heat</span><span><span style={{color:"#88ddff"}}>{fmtPres(1015,u.pressure)}</span> Normal</span><span><span style={{color:"#9955cc"}}>{fmtPres(1000,u.pressure)}</span> Low/Rain</span></div>}
-        {graph==="wind"&&<div style={{display:"flex",gap:8,marginTop:5,fontSize:9,color:"#777",flexWrap:"wrap"}}>{[["<5","V.Light"],["5-10","Light"],["10-20","Mod"],["20-30","Strong"],["30+","Gale+"]].map(function(p){return <span key={p[0]}><span style={{color:"#ffcc88"}}>{p[0]}</span> {p[1]}</span>;})}</div>}
+      <div style={{fontSize:11,letterSpacing:3,color:"#ff7700",textTransform:"uppercase",marginBottom:16}}>Hourly Forecast</div>
+      <div style={{display:"flex",gap:6,marginBottom:18,flexWrap:"wrap"}}>
+        {forecastData.slice(0,7).map(function(d,i){var on=iSd===i;return <button key={i} onClick={function(){setSd(i);setSh(null);}} style={{padding:"7px 12px",borderRadius:10,border:"1px solid",borderColor:on?tc(d.temp):"rgba(255,255,255,0.12)",background:on?bgc(d.temp):"rgba(255,255,255,0.03)",color:on?tc(d.temp):"#888",fontSize:11,cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2}}><span style={{fontSize:16}}>{d.condition}</span><span style={{fontWeight:"bold"}}>{d.date.split(" ").slice(0,2).join(" ")}</span><span>{fmtTemp(d.temp,u.temp)}</span></button>;})}
       </div>
-
-      {/* Day cards */}
-      <div style={grid}>
-        {forecastData.map(function(d,i){
-          const color=tc(d.temp),isC=d.type==="confirmed",isN=d.type==="near",isSel=sel===i;
-          const shade=shadeFeel(d.temp,d.windMph,d.humidity,d.condition);
-          const sun=sunFeel(d.temp,d.windMph,d.humidity,d.condition);
-          const sunny=hasSun(d.condition);
-          const storm=d.humidity>=50&&d.temp>=28;
-          const cat=windCat(d.windMph);
+      <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:14,padding:"14px 10px",marginBottom:16}}>
+        <div style={{fontSize:11,color:"#888",marginBottom:10}}>Temperature curve — tap an hour for full details</div>
+        <div style={{display:"flex",alignItems:"flex-end",gap:1,height:80}}>
+          {hours.map(function(h,i){
+            var bH=Math.max(8,((h.temp-minH)/Math.max(maxH-minH,1))*68+8);
+            var isSel=iSh===i,col=tc(Math.round(h.temp)),isN=h.hour<6||h.hour>=21;
+            return <div key={i} onClick={function(){setSh(iSh===i?null:i);}} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",cursor:"pointer",gap:2}}>
+              <div style={{width:"100%",height:bH,background:isSel?col:isN?col+"55":col+"99",borderRadius:"3px 3px 0 0",outline:isSel?"2px solid "+col:"none",boxShadow:isSel?"0 0 8px "+col:"none",transition:"all 0.15s"}}/>
+              {(i%3===0)&&<div style={{fontSize:8,color:isSel?"#fff":"#555",marginTop:1}}>{h.timeStr}</div>}
+            </div>;
+          })}
+        </div>
+        <div style={{display:"flex",justifyContent:"space-between",marginTop:4,fontSize:9,color:"#555"}}><span>{fmtTemp(Math.round(minH),u.temp)} min</span><span>{fmtTemp(Math.round(maxH),u.temp)} max</span></div>
+      </div>
+      <div style={{display:"flex",flexDirection:"column",gap:6}}>
+        {hours.map(function(h,i){
+          var isSel=iSh===i,col=tc(Math.round(h.temp)),isN=h.hour<6||h.hour>=21;
+          var shT=Math.round(h.temp+condBonus(h.condition,h.temp,true)+humBonus(h.humidity)+windBonus(h.windMph));
+          var suT=Math.round(h.temp+condBonus(h.condition,h.temp,false)+humBonus(h.humidity)+windBonus(h.windMph));
+          var hasSunHr=hasSun(h.condition);
+          var msgs=[];
+          if(h.uv>=8)msgs.push("Extreme UV — avoid prolonged sun exposure.");
+          else if(h.uv>=6)msgs.push("High UV — sunscreen essential.");
+          else if(h.uv>=3)msgs.push("Moderate UV — apply sunscreen.");
+          if(suT>=38)msgs.push("Dangerously hot in direct sun.");
+          else if(suT>=33)msgs.push("Very hot in direct sun — stay hydrated.");
+          if(h.rainChance>=70)msgs.push("High rain chance — carry an umbrella.");
+          else if(h.rainChance>=40)msgs.push("Rain possible — worth having a jacket.");
+          if(h.windMph>=20)msgs.push("Strong wind — may feel uncomfortable outdoors.");
+          if(h.humidity>=80)msgs.push("Very humid.");
+          if(msgs.length===0)msgs.push("Pleasant conditions.");
           return (
-            <div key={i} onClick={function(){setSel(sel===i?null:i);}} style={{background:isSel?bgc(d.temp):"rgba(255,255,255,0.03)",border:"1px solid "+(isC?color+"66":isN?color+"44":"rgba(255,255,255,0.08)"),borderRadius:12,padding:"13px 11px 11px",cursor:"pointer",transition:"all 0.2s",transform:isSel?"scale(1.03)":"scale(1)",boxShadow:isSel?"0 6px 24px "+color+"28":"none"}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:7}}>
-                <div>
-                  <div style={{fontSize:11,color:"#bbb",letterSpacing:1,textTransform:"uppercase",fontWeight:"bold"}}>{d.date.split(" ").slice(0,2).join(" ")}</div>
-                  <div style={{fontSize:10,color:"#666",marginTop:1}}>{d.date.split(" ").slice(2).join(" ")}</div>
+            <div key={i} onClick={function(){setSh(iSh===i?null:i);}} style={{background:isSel?bgc(Math.round(h.temp)):isN?"rgba(255,255,255,0.015)":"rgba(255,255,255,0.03)",border:"1px solid "+(isSel?col+"55":"rgba(255,255,255,0.07)"),borderRadius:11,padding:isSel?"14px":"10px 14px",cursor:"pointer",transition:"all 0.2s"}}>
+              <div style={{display:"flex",alignItems:"center",gap:10}}>
+                <div style={{width:44,flexShrink:0}}><div style={{fontSize:13,fontWeight:"bold",color:isN?"#666":"#ccc"}}>{h.timeStr}</div><div style={{fontSize:9,color:"#444"}}>{isN?"Night":h.hour<12?"AM":"PM"}</div></div>
+                <span style={{fontSize:22,flexShrink:0}}>{h.condition}</span>
+                <div style={{flexShrink:0,minWidth:46}}><div style={{fontSize:18,fontWeight:"bold",color:col,lineHeight:1}}>{fmtTemp(Math.round(h.temp),u.temp)}</div><div style={{fontSize:9,color:"#666"}}>feels {fmtTemp(h.feelsLike,u.temp)}</div></div>
+                <div style={{flex:1,display:"flex",gap:10,flexWrap:"wrap",fontSize:10}}>
+                  <span style={{color:rc(h.rainChance)}}>{h.rainChance}% rain</span>
+                  {h.rainMm>0&&<span style={{color:rc(h.rainChance)}}>{fmtRain(h.rainMm,u.rain)}</span>}
+                  <span style={{color:wc(h.windMph)}}>{fmtSpd(h.windMph,u.speed)}</span>
+                  <span style={{color:hc(h.humidity)}}>{h.humidity}%</span>
                 </div>
-                <div style={{textAlign:"right"}}>
-                  <span style={{fontSize:20}}>{d.condition}</span>
-                  {storm&&<div style={{fontSize:9,color:"#ffcc00",marginTop:1}}>storm risk</div>}
-                </div>
-              </div>
-              <div style={{display:"flex",alignItems:"baseline",gap:3,marginBottom:8}}>
-                <span style={{fontSize:30,fontWeight:"bold",color,lineHeight:1}}>{fmtTemp(d.temp,u.temp)}</span>
-                <span style={{fontSize:11,color:"#5a7a5a",marginLeft:5}}>/{fmtTemp(d.low,u.temp)}</span>
-              </div>
-              <div style={{background:"rgba(0,0,0,0.28)",borderRadius:8,padding:"7px 9px",marginBottom:8,display:"flex",flexDirection:"column",gap:4}}>
-                {sunny&&<div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><span style={{fontSize:11,color:"#ffd060"}}>In sun</span><span style={{fontSize:14,fontWeight:"bold",color:tc(sun)}}>{fmtTemp(sun,u.temp)}</span></div>}
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><span style={{fontSize:11,color:"#a0b4c8"}}>In shade</span><span style={{fontSize:14,fontWeight:"bold",color:tc(shade)}}>{fmtTemp(shade,u.temp)}</span></div>
-              </div>
-              <div style={{display:"flex",gap:4,fontSize:10,flexWrap:"wrap",marginBottom:3}}>
-                <span style={{color:rc(d.rain)}}>{d.rain}%</span>
-                <span style={{color:rc(d.rain)}}>{fmtRain(d.rainMm,u.rain)}</span>
-                {d.rainHours>0&&<span style={{color:"#5577aa"}}>{d.rainHours}h</span>}
-              </div>
-              <div style={{display:"flex",gap:4,fontSize:10,flexWrap:"wrap",marginBottom:isSel?6:0}}>
-                <span style={{color:hc(d.humidity)}}>{d.humidity}%hum</span>
-                <span style={{color:wc(d.windMph)}}>{fmtSpeed(d.windMph,u.speed)}</span>
-                <span style={{color:pc(d.pressure)}}>{fmtPres(d.pressure,u.pressure)}</span>
+                <span style={{fontSize:10,color:"#555",flexShrink:0}}>{isSel?"▲":"▼"}</span>
               </div>
               {isSel&&(
-                <div style={{fontSize:11,color:"#9a8c7a",marginTop:6,borderTop:"1px solid rgba(255,255,255,0.07)",paddingTop:8,lineHeight:1.7}}>
-                  <div style={{marginBottom:8,color:"#bbb",fontSize:12}}>{d.note}</div>
-                  <div style={{display:"flex",gap:6,marginBottom:10,flexWrap:"wrap"}}>
-                    <button onClick={function(e){e.stopPropagation();setDetailView("daily");}} style={{padding:"3px 10px",fontSize:11,borderRadius:10,background:detailView==="daily"?"#ff7700":"rgba(255,255,255,0.07)",color:detailView==="daily"?"#fff":"#aaa",border:"none",cursor:"pointer"}}>Daily Summary</button>
-                    <button onClick={function(e){e.stopPropagation();setDetailView("periods");}} style={{padding:"3px 10px",fontSize:11,borderRadius:10,background:detailView==="periods"?"#ff7700":"rgba(255,255,255,0.07)",color:detailView==="periods"?"#fff":"#aaa",border:"none",cursor:"pointer"}}>Morning / Afternoon / Evening</button>
+                <div style={{marginTop:14,borderTop:"1px solid rgba(255,255,255,0.07)",paddingTop:12}}>
+                  <div style={{background:"rgba(0,0,0,0.3)",borderRadius:10,padding:"10px 12px",marginBottom:12,display:"flex",gap:20,flexWrap:"wrap"}}>
+                    {hasSunHr&&<div><div style={{fontSize:9,color:"#ffd060",textTransform:"uppercase",letterSpacing:1,marginBottom:2}}>In Sun</div><div style={{fontSize:22,fontWeight:"bold",color:tc(suT)}}>{fmtTemp(suT,u.temp)}</div></div>}
+                    <div><div style={{fontSize:9,color:"#a0b4c8",textTransform:"uppercase",letterSpacing:1,marginBottom:2}}>In Shade</div><div style={{fontSize:22,fontWeight:"bold",color:tc(shT)}}>{fmtTemp(shT,u.temp)}</div></div>
+                    <div><div style={{fontSize:9,color:"#aaa",textTransform:"uppercase",letterSpacing:1,marginBottom:2}}>Actual</div><div style={{fontSize:22,fontWeight:"bold",color:col}}>{fmtTemp(Math.round(h.temp),u.temp)}</div></div>
                   </div>
-                  {detailView==="daily"&&(
-                    <div style={{display:"flex",flexDirection:"column",gap:3}}>
-                      <span>Pressure: <b style={{color:pc(d.pressure)}}>{fmtPres(d.pressure,u.pressure)}</b></span>
-                      <span>Rain chance: <b style={{color:rc(d.rain)}}>{d.rain}%</b></span>
-                      <span>Rainfall: <b style={{color:rc(d.rain)}}>{fmtRain(d.rainMm,u.rain)}</b>{d.rainHours>0&&<span style={{color:"#666",fontSize:10}}> approx. {d.rainHours} hours</span>}</span>
-                      <span>Humidity: <b style={{color:hc(d.humidity)}}>{d.humidity}%</b></span>
-                      <span>Wind: <b style={{color:wc(d.windMph)}}>{fmtSpeed(d.windMph,u.speed)}</b><span style={{color:"#666",fontSize:10}}> — {cat}</span></span>
-                      <span style={{fontSize:10}}>Gusts: <b style={{color:wc(d.gustMph)}}>{fmtSpeed(d.gustMph,u.speed)}</b><span style={{color:"#555"}}> ({windCat(d.gustMph)})</span></span>
-                    </div>
-                  )}
-                  {detailView==="periods"&&(function(){
-                    const periods=getDayPeriods(d);
-                    return <div style={{display:"flex",flexDirection:"column",gap:8}}>{["morning","afternoon","evening"].map(function(pKey){const p=periods[pKey];return <div key={pKey} style={{background:"rgba(0,0,0,0.22)",padding:"8px 10px",borderRadius:8,borderLeft:"3px solid "+tc(p.temp)}}><div style={{fontSize:11,color:"#ddd",marginBottom:3}}>{p.time} — {p.condition}</div><div style={{display:"flex",justifyContent:"space-between",fontSize:12}}><b style={{color:tc(p.temp)}}>{fmtTemp(p.temp,u.temp)}</b><span style={{color:rc(p.rain)}}>{p.rain}% · {fmtRain(p.rainMm,u.rain)}</span></div><div style={{fontSize:10,color:wc(p.windMph),marginTop:2}}>Wind: {fmtSpeed(p.windMph,u.speed)}</div><div style={{fontSize:10,color:"#888",marginTop:1}}>{p.note}</div></div>;})}</div>;
-                  })()}
-                  {isC&&<div style={{color:"#ff7700",marginTop:5,fontSize:10}}>Confirmed forecast</div>}
-                  {isN&&<div style={{color:"#4a9fd4",marginTop:5,fontSize:10}}>Near-term forecast</div>}
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"10px 20px",fontSize:12}}>
+                    <div><div style={{fontSize:9,color:"#555",textTransform:"uppercase",letterSpacing:1}}>Wind</div><div style={{color:wc(h.windMph),fontWeight:"bold"}}>{fmtSpd(h.windMph,u.speed)} {h.windDir}</div><div style={{fontSize:10,color:"#666"}}>{windCat(h.windMph)}</div></div>
+                    <div><div style={{fontSize:9,color:"#555",textTransform:"uppercase",letterSpacing:1}}>Gusts</div><div style={{color:wc(h.gustMph),fontWeight:"bold"}}>{fmtSpd(h.gustMph,u.speed)}</div><div style={{fontSize:10,color:"#666"}}>{windCat(h.gustMph)}</div></div>
+                    <div><div style={{fontSize:9,color:"#555",textTransform:"uppercase",letterSpacing:1}}>Rain Chance</div><div style={{color:rc(h.rainChance),fontWeight:"bold"}}>{h.rainChance}%</div>{h.rainMm>0&&<div style={{fontSize:10,color:rc(h.rainChance)}}>{fmtRain(h.rainMm,u.rain)} expected</div>}</div>
+                    <div><div style={{fontSize:9,color:"#555",textTransform:"uppercase",letterSpacing:1}}>Humidity</div><div style={{color:hc(h.humidity),fontWeight:"bold"}}>{h.humidity}%</div><div style={{fontSize:10,color:"#666"}}>Dew {fmtTemp(h.dewPoint,u.temp)}</div></div>
+                    <div><div style={{fontSize:9,color:"#555",textTransform:"uppercase",letterSpacing:1}}>Pressure</div><div style={{color:pc(h.pressure),fontWeight:"bold"}}>{fmtPres(h.pressure,u.pressure)}</div><div style={{fontSize:10,color:"#666"}}>{h.pressure>=1020?"High":"h.pressure>=1010"?"Normal":"Low"}</div></div>
+                    <div><div style={{fontSize:9,color:"#555",textTransform:"uppercase",letterSpacing:1}}>UV Index</div><div style={{color:uvCol(h.uv),fontWeight:"bold"}}>{h.uv} — {uvLbl(h.uv)}</div><div style={{fontSize:10,color:"#666"}}>{h.uv>=6?"Protection essential":h.uv>=3?"Some protection":h.uv>0?"Low risk":"No UV"}</div></div>
+                    <div><div style={{fontSize:9,color:"#555",textTransform:"uppercase",letterSpacing:1}}>Cloud Cover</div><div style={{color:"#aaa",fontWeight:"bold"}}>{h.cloud}%</div><div style={{fontSize:10,color:"#666"}}>{h.cloud<20?"Clear":h.cloud<40?"Mostly clear":h.cloud<70?"Partly cloudy":"Overcast"}</div></div>
+                    <div><div style={{fontSize:9,color:"#555",textTransform:"uppercase",letterSpacing:1}}>Visibility</div><div style={{color:"#aabbcc",fontWeight:"bold",fontSize:11}}>{h.visibility}</div></div>
+                  </div>
+                  <div style={{marginTop:12,background:"rgba(255,255,255,0.03)",borderRadius:8,padding:"8px 10px",fontSize:11,color:"#9a8c7a",lineHeight:1.6}}>{msgs.join(" ")}</div>
                 </div>
               )}
             </div>
           );
         })}
       </div>
+    </div>
+  );
+}
 
-      {/* Rationale */}
-      <div style={{marginTop:28,background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:14,padding:"18px"}}>
-        <div style={{fontSize:11,letterSpacing:4,color:"#ff7700",textTransform:"uppercase",marginBottom:14}}>Forecast Rationale</div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))",gap:14}}>
-          {[
-            {icon:"🌊",title:"Jet Stream",      text:"Current pattern has the jet stream displaced north, favouring blocking high pressure — a key driver of extended UK heat events."},
-            {icon:"🌱",title:"Dry Soil Effect",  text:"England endured its driest spring in 132 years in 2025. Dry ground heats faster, amplifying peak temperatures by 2-4°C."},
-            {icon:"☀️",title:"Warm Spring 2026", text:"May 2026 reached 34-35°C — one of the hottest bank holiday weekends on record, setting a warm baseline for summer."},
-            {icon:"📈",title:"Heatwave Bias",    text:"Forecast models systematically underestimate heatwave peaks. Temperatures are adjusted upward for the June and July heat events."},
-            {icon:"🏆",title:"Record Risk",      text:"May record is 32.8°C, June's is 35.6°C, July's is 40.2°C. Peaks of 36°C (Jun 20) and 38°C (Jul 5) represent plausible record-threatening events."},
-            {icon:"⚡",title:"Storm Risk",       text:"On very hot days when humidity rises unexpectedly, violent thunderstorms are possible. Cards flag days where temp and humidity combine dangerously."},
-          ].map(function(r,i){
-            return <div key={i} style={{display:"flex",gap:12}}><span style={{fontSize:22,flexShrink:0}}>{r.icon}</span><div><div style={{fontSize:13,color:"#e8dcc8",fontWeight:"bold",marginBottom:4}}>{r.title}</div><div style={{fontSize:12,color:"#7a6e5e",lineHeight:1.55}}>{r.text}</div></div></div>;
-          })}
+// ── Weather Graphs ────────────────────────────────────────────────────────────
+function WeatherGraphs(props){
+  var forecastData=props.forecastData,hourlyRaw=props.hourlyRaw,u=props.u;
+  var ag=useState("temp");var iAg=ag[0];var setAg=ag[1];
+  var hov=useState(null);var iHov=hov[0];var setHov=hov[1];
+  var uh=useState(false);var iUh=uh[0];var setUh=uh[1];
+  var hasHourly=hourlyRaw&&hourlyRaw.times&&hourlyRaw.times.length>0;
+  var points=[];
+  if(iUh&&hasHourly){
+    var sl=Math.min(hourlyRaw.times.length,13*24);
+    for(var ii=0;ii<sl;ii++){
+      var t=hourlyRaw.times[ii];
+      var lbl=t.split("T")[1].slice(0,5)+" "+t.split("T")[0].slice(5);
+      var val=iAg==="temp"?Math.round(hourlyRaw.temps[ii]):iAg==="rain"?Math.round(hourlyRaw.rain[ii]||0):iAg==="wind"?Math.round(hourlyRaw.windMph[ii]||0):iAg==="gust"?Math.round(hourlyRaw.gusts[ii]||0):iAg==="hum"?Math.round(hourlyRaw.humidity[ii]||0):iAg==="pressure"?Math.round(hourlyRaw.pressure[ii]||1013):iAg==="cloud"?Math.round(hourlyRaw.cloud[ii]||0):iAg==="uv"?Math.round(hourlyRaw.uv[ii]||0):0;
+      points.push({label:lbl,val:val,time:t});
+    }
+  }else{
+    forecastData.forEach(function(d){
+      var val=iAg==="temp"?d.temp:iAg==="rain"?d.rain:iAg==="wind"?d.windMph:iAg==="gust"?d.gustMph:iAg==="hum"?d.humidity:iAg==="pressure"?d.pressure:iAg==="cloud"?Math.round(d.humidity*0.7):iAg==="uv"?(d.temp>=30?8:d.temp>=25?6:d.temp>=20?4:2):0;
+      points.push({label:d.date,val:val,condition:d.condition});
+    });
+  }
+  var vals=points.map(function(p){return p.val;});
+  var maxV=vals.length>0?Math.max.apply(null,vals):1;
+  var minV=vals.length>0?Math.min.apply(null,vals):0;
+  var range=Math.max(maxV-minV,1);
+  var peaks=[],troughs=[];
+  for(var pi=1;pi<points.length-1;pi++){var pv=points[pi-1].val,cv=points[pi].val,nv=points[pi+1].val;if(cv>pv&&cv>nv&&cv>minV+range*0.6)peaks.push(pi);if(cv<pv&&cv<nv&&cv<minV+range*0.4)troughs.push(pi);}
+  function colV(v){if(iAg==="temp")return tc(v);if(iAg==="rain"||iAg==="cloud")return rc(v);if(iAg==="wind"||iAg==="gust")return wc(v);if(iAg==="hum")return hc(v);if(iAg==="pressure")return pc(v);if(iAg==="uv")return uvCol(v);return "#88aacc";}
+  function fmtV(v){if(iAg==="temp")return fmtTemp(v,u.temp);if(iAg==="rain"||iAg==="hum"||iAg==="cloud")return v+"%";if(iAg==="wind"||iAg==="gust")return fmtSpd(v,u.speed);if(iAg==="pressure")return fmtPres(v,u.pressure);if(iAg==="uv")return v+" UV";return ""+v;}
+  var gTabs=[{id:"temp",label:"Temp",icon:"\u{1F321}"},{id:"rain",label:"Rain%",icon:"\u{1F327}"},{id:"wind",label:"Wind",icon:"\u{1F4A8}"},{id:"gust",label:"Gusts",icon:"\u{1F32C}\uFE0F"},{id:"hum",label:"Humidity",icon:"\u{1F4A7}"},{id:"pressure",label:"Pressure",icon:"\u{1F4CA}"},{id:"cloud",label:"Cloud",icon:"\u2601\uFE0F"},{id:"uv",label:"UV",icon:"\u2600\uFE0F"}];
+  var svgW=900,svgH=220,padL=44,padR=16,padT=32,padB=28;
+  var chartW=svgW-padL-padR,chartH=svgH-padT-padB;
+  var step=chartW/Math.max(points.length-1,1);
+  function xOf(i){return padL+i*step;}
+  function yOf(v){return padT+chartH-((v-minV)/range)*chartH;}
+  var pathD=points.map(function(p,i){return (i===0?"M":"L")+xOf(i).toFixed(1)+","+yOf(p.val).toFixed(1);}).join(" ");
+  var areaD=pathD+" L"+xOf(points.length-1).toFixed(1)+","+(padT+chartH)+" L"+padL+","+(padT+chartH)+" Z";
+  var ySteps=4,yLabels=[];
+  for(var yi=0;yi<=ySteps;yi++){var yv=minV+(range*yi/ySteps);yLabels.push({y:yOf(yv),val:Math.round(yv)});}
+  var xEvery=iUh?Math.ceil(points.length/14):1;
+  return (
+    <div>
+      <div style={{fontSize:11,letterSpacing:3,color:"#ff7700",textTransform:"uppercase",marginBottom:16}}>Weather Graphs</div>
+      <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:12}}>
+        {gTabs.map(function(t){var on=iAg===t.id;return <button key={t.id} onClick={function(){setAg(t.id);setHov(null);}} style={{padding:"5px 10px",borderRadius:20,border:"1px solid",borderColor:on?"#ff7700":"rgba(255,255,255,0.12)",background:on?"rgba(255,119,0,0.18)":"rgba(255,255,255,0.03)",color:on?"#ffaa44":"#888",fontSize:11,cursor:"pointer"}}>{t.icon} {t.label}</button>;})}
+      </div>
+      <div style={{display:"flex",gap:8,marginBottom:14,alignItems:"center"}}>
+        <button onClick={function(){setUh(false);setHov(null);}} style={{padding:"4px 12px",borderRadius:10,border:"1px solid",borderColor:!iUh?"#ff7700":"rgba(255,255,255,0.12)",background:!iUh?"rgba(255,119,0,0.18)":"rgba(255,255,255,0.03)",color:!iUh?"#ffaa44":"#888",fontSize:11,cursor:"pointer"}}>Daily (14 days)</button>
+        <button onClick={function(){setUh(true);setHov(null);}} style={{padding:"4px 12px",borderRadius:10,border:"1px solid",borderColor:iUh?"#ff7700":"rgba(255,255,255,0.12)",background:iUh?"rgba(255,119,0,0.18)":"rgba(255,255,255,0.03)",color:iUh?"#ffaa44":"#888",fontSize:11,cursor:"pointer",opacity:hasHourly?1:0.4}}>Hourly{!hasHourly?" (search a location)":""}</button>
+      </div>
+      <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:14,padding:"10px 4px 6px",marginBottom:16,overflowX:"auto"}}>
+        <svg viewBox={"0 0 "+svgW+" "+svgH} style={{width:"100%",minWidth:320,height:"auto",display:"block"}} onMouseLeave={function(){setHov(null);}}>
+          {yLabels.map(function(yl,i){return <g key={i}><line x1={padL} y1={yl.y} x2={svgW-padR} y2={yl.y} stroke="rgba(255,255,255,0.06)" strokeWidth="1"/><text x={padL-4} y={yl.y+4} textAnchor="end" fontSize="9" fill="#555">{fmtV(yl.val)}</text></g>;})}
+          <defs><linearGradient id="ag" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={colV(maxV)} stopOpacity="0.3"/><stop offset="100%" stopColor={colV(maxV)} stopOpacity="0.02"/></linearGradient></defs>
+          <path d={areaD} fill="url(#ag)"/>
+          <path d={pathD} fill="none" stroke={colV(maxV)} strokeWidth="2" strokeLinejoin="round"/>
+          {peaks.map(function(pi){return <g key={"pk"+pi}><circle cx={xOf(pi)} cy={yOf(points[pi].val)} r="4" fill={colV(points[pi].val)} opacity="0.9"/><text x={xOf(pi)} y={yOf(points[pi].val)-8} textAnchor="middle" fontSize="9" fill={colV(points[pi].val)} fontWeight="bold">{fmtV(points[pi].val)}</text><text x={xOf(pi)} y={yOf(points[pi].val)-18} textAnchor="middle" fontSize="8" fill="#888">Peak</text></g>;})}
+          {troughs.map(function(ti){return <g key={"tr"+ti}><circle cx={xOf(ti)} cy={yOf(points[ti].val)} r="3" fill="#4a9fd4" opacity="0.8"/><text x={xOf(ti)} y={yOf(points[ti].val)+16} textAnchor="middle" fontSize="9" fill="#4a9fd4">{fmtV(points[ti].val)}</text></g>;})}
+          {iHov!==null&&<g><line x1={xOf(iHov)} y1={padT} x2={xOf(iHov)} y2={padT+chartH} stroke="rgba(255,255,255,0.2)" strokeWidth="1" strokeDasharray="4,3"/><circle cx={xOf(iHov)} cy={yOf(points[iHov].val)} r="5" fill={colV(points[iHov].val)} stroke="#fff" strokeWidth="1.5"/></g>}
+          {points.map(function(p,i){return <rect key={i} x={xOf(i)-step/2} y={padT} width={step} height={chartH} fill="transparent" onMouseEnter={function(){setHov(i);}} onClick={function(){setHov(iHov===i?null:i);}} style={{cursor:"crosshair"}}/>;} )}
+          {points.map(function(p,i){if(i%xEvery!==0)return null;var lb=iUh?p.label.split(" ")[0]:p.label.split(" ").slice(0,2).join(" ");return <text key={i} x={xOf(i)} y={svgH-4} textAnchor="middle" fontSize="8" fill="#555" transform={"rotate(-30,"+xOf(i)+","+(svgH-4)+")"}>{lb}</text>;})}
+        </svg>
+        {iHov!==null&&<div style={{textAlign:"center",padding:"6px 0 2px",fontSize:12,color:"#ccc"}}><span style={{color:"#888"}}>{points[iHov].label}</span><span style={{color:colV(points[iHov].val),fontWeight:"bold",marginLeft:10,fontSize:16}}>{fmtV(points[iHov].val)}</span>{!iUh&&points[iHov].condition&&<span style={{marginLeft:8,fontSize:18}}>{points[iHov].condition}</span>}</div>}
+      </div>
+      <div style={{background:"rgba(255,255,255,0.02)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:12,padding:"12px 14px",marginBottom:16}}>
+        <div style={{fontSize:11,color:"#888",marginBottom:10,letterSpacing:2,textTransform:"uppercase"}}>Conditions — Next 14 Days</div>
+        <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+          {forecastData.slice(0,14).map(function(d,i){var isC=d.type==="confirmed",isN=d.type==="near",col=tc(d.temp);return <div key={i} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:3,padding:"8px 6px",borderRadius:10,minWidth:46,flex:"1 1 46px",background:isC?"rgba(255,119,0,0.1)":isN?"rgba(74,159,212,0.07)":"rgba(255,255,255,0.02)",border:"1px solid "+(isC?col+"44":isN?col+"22":"rgba(255,255,255,0.06)")}}><div style={{fontSize:9,color:"#666",textAlign:"center"}}>{d.date.split(" ").slice(0,2).join(" ")}</div><div style={{fontSize:20}}>{d.condition}</div><div style={{fontSize:12,fontWeight:"bold",color:col}}>{fmtTemp(d.temp,u.temp)}</div><div style={{fontSize:10,color:"#5a7a5a"}}>{fmtTemp(d.low,u.temp)}</div>{d.rain>=40&&<div style={{fontSize:9,color:rc(d.rain)}}>{d.rain}%</div>}</div>;})}
         </div>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:8}}>
+        {(function(){
+          var temps=forecastData.map(function(d){return d.temp;});
+          var lows=forecastData.map(function(d){return d.low;});
+          var maxT2=Math.max.apply(null,temps),minT2=Math.min.apply(null,temps);
+          var maxL=Math.max.apply(null,lows);
+          var avg=Math.round(temps.reduce(function(a,b){return a+b;},0)/temps.length);
+          var rainy=forecastData.filter(function(d){return d.rain>=50;}).length;
+          var sunny=forecastData.filter(function(d){return d.condition.includes("\u2600")||d.condition.includes("\u{1F321}")||d.condition.includes("\u{1F324}");}).length;
+          var totalR=forecastData.reduce(function(a,d){return a+d.rainMm;},0);
+          var stats=[
+            {icon:"\u{1F525}",label:"Peak High",val:fmtTemp(maxT2,u.temp),col:tc(maxT2)},
+            {icon:"\u2744\uFE0F",label:"Lowest High",val:fmtTemp(minT2,u.temp),col:tc(minT2)},
+            {icon:"\u{1F4CA}",label:"Avg High",val:fmtTemp(avg,u.temp),col:tc(avg)},
+            {icon:"\u{1F319}",label:"Warmest Low",val:fmtTemp(maxL,u.temp),col:tc(maxL)},
+            {icon:"\u{1F327}",label:"Rainy Days",val:rainy+" days",col:"#66aaff"},
+            {icon:"\u2600\uFE0F",label:"Sunny Days",val:sunny+" days",col:"#ffcc00"},
+            {icon:"\u{1F4A6}",label:"Total Rain",val:fmtRain(totalR,u.rain),col:"#88ccff"},
+          ];
+          return stats.map(function(s,i){return <div key={i} style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:10,padding:"10px 12px"}}><div style={{fontSize:16,marginBottom:4}}>{s.icon}</div><div style={{fontSize:9,color:"#666",textTransform:"uppercase",letterSpacing:1,marginBottom:3}}>{s.label}</div><div style={{fontSize:18,fontWeight:"bold",color:s.col}}>{s.val}</div></div>;});
+        })()}
       </div>
     </div>
   );
 }
 
-// ─── Main App ─────────────────────────────────────────────────────────────────
-function App() {
-  const [forecastData, setForecastData] = useState(LOADING_DATA);
-  const [hourlyRaw,    setHourlyRaw]    = useState(null);
-  const [locationName, setLocationName] = useState("Loading...");
-  const [dateRange,    setDateRange]    = useState("");
-  const [searchText,   setSearchText]   = useState("");
-  const [searching,    setSearching]    = useState(false);
-  const [searchErr,    setSearchErr]    = useState("");
-  const [activePage,   setActivePage]   = useState("overview");
-  const [showSett,     setShowSett]     = useState(false);
-  const [units,        setUnits]        = useState({ temp:"C", speed:"mph", rain:"mm", pressure:"mbar" });
+// ── Map and Radar ─────────────────────────────────────────────────────────────
+function MapRadar(props){
+  var locationName=props.locationName,forecastData=props.forecastData;
+  var layer=useState("clouds_new");var iLayer=layer[0];var setLayer=layer[1];
+  var layers=[
+    {id:"clouds_new",label:"Cloud Cover"},
+    {id:"precipitation_new",label:"Precipitation"},
+    {id:"pressure_new",label:"Pressure"},
+    {id:"wind_new",label:"Wind"},
+    {id:"temp_new",label:"Temperature"},
+  ];
+  var apiKey="ae1c71166a78c7c450b495408e5e0d53";
+  var osmBase="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+  var owmBase="https://tile.openweathermap.org/map/"+iLayer+"/{z}/{x}/{y}.png?appid="+apiKey;
+  // Leaflet map via blob URL approach - build HTML as a blob
+  var mapRef=useRef(null);
+  var iframeRef=useRef(null);
+  useEffect(function(){
+    if(!iframeRef.current)return;
+    var doc=[
+      "<!DOCTYPE html><html><head>",
+      "<link rel='stylesheet' href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'/>",
+      "<style>body{margin:0}#m{height:100vh;background:#0a0a1a}</style>",
+      "</head><body><div id='m'></div>",
+      "<script src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'></s"+"cript>",
+      "<script>",
+      "window.onload=function(){",
+      "var map=L.map('m').setView([51.5074,-0.1278],5);",
+      "L.tileLayer('"+osmBase+"',{opacity:0.7}).addTo(map);",
+      "L.tileLayer('"+owmBase+"',{opacity:0.6}).addTo(map);",
+      "L.marker([51.5074,-0.1278]).addTo(map).bindPopup('"+locationName.replace(/['"<>]/g,"")+"').openPopup();",
+      "};",
+      "</s"+"cript></body></html>"
+    ].join("");
+    var blob=new Blob([doc],{type:"text/html"});
+    var url=URL.createObjectURL(blob);
+    iframeRef.current.src=url;
+    return function(){URL.revokeObjectURL(url);};
+  },[iLayer,locationName]);
+  return (
+    <div>
+      <div style={{fontSize:11,letterSpacing:3,color:"#ff7700",textTransform:"uppercase",marginBottom:16}}>Map and Radar</div>
+      <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:12}}>
+        {layers.map(function(l){var on=iLayer===l.id;return <button key={l.id} onClick={function(){setLayer(l.id);}} style={{padding:"5px 11px",borderRadius:20,border:"1px solid",borderColor:on?"#ff7700":"rgba(255,255,255,0.12)",background:on?"rgba(255,119,0,0.18)":"rgba(255,255,255,0.03)",color:on?"#ffaa44":"#888",fontSize:11,cursor:"pointer"}}>{l.label}</button>;})}
+      </div>
+      <div ref={mapRef} style={{borderRadius:14,overflow:"hidden",border:"1px solid rgba(255,255,255,0.1)",height:400,marginBottom:16}}>
+        <iframe ref={iframeRef} style={{width:"100%",height:"100%",border:"none"}} title="Weather Map"/>
+      </div>
+      {forecastData.length>0&&<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(130px,1fr))",gap:8}}>
+        {forecastData.slice(0,6).map(function(d,i){return <div key={i} style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:10,padding:"10px",textAlign:"center"}}><div style={{fontSize:9,color:"#666",marginBottom:3}}>{d.date.split(" ").slice(0,2).join(" ")}</div><div style={{fontSize:22}}>{d.condition}</div><div style={{fontSize:15,fontWeight:"bold",color:tc(d.temp)}}>{fmtTemp(d.temp,"C")}</div><div style={{fontSize:10,color:rc(d.rain),marginTop:2}}>{d.rain}% rain</div></div>;})}
+      </div>}
+    </div>
+  );
+}
 
-  // Auto-load London on first render
-  useEffect(function() {
-    fetchLocation("London");
-  }, []);
+// ── Weather Extremes ──────────────────────────────────────────────────────────
+function WeatherExtremes(props){
+  var forecastData=props.forecastData,locationName=props.locationName,u=props.u;
+  var lr=useState([]);var iLr=lr[0];var setLr=lr[1];
+  var loading=useState(false);var iLoading=loading[0];var setLoading=loading[1];
+  var loaded=useState(false);var iLoaded=loaded[0];var setLoaded=loaded[1];
+  var error=useState("");var iError=error[0];var setError=error[1];
 
-  async function fetchLocation(name) {
-    setSearching(true); setSearchErr("");
-    try {
-      const geoRes  = await fetch("https://geocoding-api.open-meteo.com/v1/search?name="+encodeURIComponent(name)+"&count=1&language=en&format=json");
-      const geoJson = await geoRes.json();
-      if(!geoJson.results||!geoJson.results.length){ setSearchErr("Location not found."); setSearching(false); return; }
-      const place = geoJson.results[0];
-      const wRes = await fetch(
-        "https://api.open-meteo.com/v1/forecast?latitude="+place.latitude+"&longitude="+place.longitude+
-        "&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,precipitation_hours,windspeed_10m_max,windgusts_10m_max,relative_humidity_2m_mean,surface_pressure_mean,weathercode" +
-        "&hourly=temperature_2m,weathercode,precipitation_probability,precipitation,windspeed_10m,windgusts_10m,relativehumidity_2m,surface_pressure,cloudcover,uv_index,dewpoint_2m,visibility" +
-        "&timezone=auto&forecast_days=13"
-      );
-      const wJson = await wRes.json();
-      const days  = wJson.daily;
-      const hrs   = wJson.hourly;
-      const data  = days.time.map(function(t,i){
-        const temp=Math.round(days.temperature_2m_max[i]);
-        const windMph=Math.round((days.windspeed_10m_max[i]||0)*0.621371);
-        const cond=condFromCode(days.weathercode[i]||0,temp);
-        const dateStr=new Date(t+"T12:00:00").toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"});
-        return { date:dateStr, temp, low:Math.round(days.temperature_2m_min[i]), type:i<3?"confirmed":i<7?"near":"estimated", condition:cond, note:"Live forecast via Open-Meteo", wind:windMph<5?"very light":windMph<10?"light":windMph<20?"moderate":"fresh", windMph, gustMph:Math.round((days.windgusts_10m_max[i]||windMph*1.3)*0.621371), rain:days.precipitation_probability_max[i]||0, humidity:Math.round(days.relative_humidity_2m_mean[i]||55), pressure:Math.round(days.surface_pressure_mean[i]||1013), rainMm:parseFloat((days.precipitation_sum[i]||0).toFixed(1)), rainHours:Math.round(days.precipitation_hours[i]||0) };
+  async function fetchLive(){
+    setLoading(true);setError("");setLr([]);
+    try{
+      var res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,tools:[{type:"web_search_20250305",name:"web_search"}],messages:[{role:"user",content:"Search the web for weather records broken in 2025 or 2026. Find: hottest temperature, coldest, heaviest rainfall, strongest wind, any national records broken. Respond ONLY with valid JSON and nothing else, no markdown: {\"records\":[{\"title\":\"string\",\"value\":\"string\",\"location\":\"string\",\"date\":\"string\",\"context\":\"string\",\"icon\":\"emoji\",\"color\":\"hex\"}]}"}]})});
+      var data=await res.json();
+      var raw=(data.content||[]).map(function(c){return c.type==="text"?c.text:"";}).join("");
+      var clean=raw.split("```json").join("").split("```").join("").trim();
+      var parsed=JSON.parse(clean);
+      setLr(parsed.records||[]);
+      setLoaded(true);
+    }catch(e){
+      setError("Could not fetch live data. Showing all-time records below.");
+      setLoaded(true);
+    }
+    setLoading(false);
+  }
+
+  var allTime=[
+    {title:"Highest Temperature",value:"56.7C / 134F",location:"Death Valley, USA",date:"10 Jul 1913",context:"The highest reliably recorded surface air temperature on Earth.",icon:"\u{1F525}",color:"#ff1500"},
+    {title:"Lowest Temperature",value:"-89.2C / -128.6F",location:"Vostok Station, Antarctica",date:"21 Jul 1983",context:"Recorded at the Soviet Antarctic research station during midwinter.",icon:"\u{1F9CA}",color:"#88ccff"},
+    {title:"Most Rain in 24 Hours",value:"1,825mm / 71.8 inches",location:"Cilaos, Reunion Island",date:"7-8 Jan 1966",context:"During Tropical Cyclone Denise — the highest 24-hour rainfall total ever recorded.",icon:"\u{1F30A}",color:"#4488ff"},
+    {title:"Strongest Wind Gust",value:"408 km/h / 253 mph",location:"Barrow Island, Australia",date:"10 Apr 1996",context:"Recorded during Tropical Cyclone Olivia — highest surface wind gust ever measured.",icon:"\u{1F300}",color:"#00ccff"},
+    {title:"Hottest Month (Global)",value:"+1.51C above pre-industrial",location:"Global Average",date:"July 2023",context:"July 2023 was the hottest month in recorded global history.",icon:"\u{1F30D}",color:"#ff6600"},
+    {title:"Most Snow in 24 Hours",value:"192cm / 75.8 inches",location:"Silver Lake, Colorado, USA",date:"14-15 Apr 1921",context:"The greatest single-day snowfall ever recorded at any weather station.",icon:"\u2744\uFE0F",color:"#aaddff"},
+    {title:"Longest Drought",value:"173 months without rain",location:"Arica, Chile",date:"Oct 1903 - Jan 1918",context:"The Atacama Desert city went over 14 consecutive years without measurable rainfall.",icon:"\u{1F3DC}\uFE0F",color:"#cc8833"},
+    {title:"Largest Hailstone",value:"20cm diameter, 878g",location:"Vivian, South Dakota, USA",date:"23 Jul 2010",context:"The largest hailstone ever officially recorded anywhere in the world.",icon:"\u26CF\uFE0F",color:"#aabbcc"},
+  ];
+
+  var localEx=[];
+  if(forecastData.length>0){
+    var mT=forecastData.reduce(function(a,d){return d.temp>a.temp?d:a;});
+    var mL=forecastData.reduce(function(a,d){return d.low<a.low?d:a;});
+    var mR=forecastData.reduce(function(a,d){return d.rainMm>a.rainMm?d:a;});
+    var mW=forecastData.reduce(function(a,d){return d.windMph>a.windMph?d:a;});
+    localEx=[
+      {title:"Forecast Peak Temp",value:fmtTemp(mT.temp,u.temp),location:locationName,date:mT.date,context:"Highest temperature in the 13-day forecast.",icon:"\u{1F321}\uFE0F",color:tc(mT.temp)},
+      {title:"Coldest Night",value:fmtTemp(mL.low,u.temp),location:locationName,date:mL.date,context:"Coldest overnight temperature in the forecast period.",icon:"\u{1F319}",color:"#88ccff"},
+      {title:"Heaviest Rain Day",value:fmtRain(mR.rainMm,u.rain)+" ("+mR.rain+"%)",location:locationName,date:mR.date,context:"Day with most expected rainfall in the forecast.",icon:"\u{1F327}",color:"#4488ff"},
+      {title:"Strongest Wind",value:fmtSpd(mW.windMph,u.speed),location:locationName,date:mW.date,context:"Peak wind forecast. Gusts to "+fmtSpd(mW.gustMph,u.speed)+".",icon:"\u{1F4A8}",color:wc(mW.windMph)},
+    ];
+  }
+
+  function Card(r,i){
+    return <div key={i} style={{background:"rgba(255,255,255,0.03)",border:"1px solid "+(r.color||"#555")+"44",borderRadius:12,padding:"14px",display:"flex",flexDirection:"column",gap:5}}>
+      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:2}}><span style={{fontSize:28}}>{r.icon}</span><div><div style={{fontSize:11,fontWeight:"bold",color:"#e8dcc8",lineHeight:1.3}}>{r.title}</div><div style={{fontSize:9,color:"#555",marginTop:1}}>{r.location}</div></div></div>
+      <div style={{fontSize:20,fontWeight:"bold",color:r.color||"#fff",lineHeight:1}}>{r.value}</div>
+      <div style={{fontSize:9,color:"#666"}}>{r.date}</div>
+      <div style={{fontSize:11,color:"#7a6e5e",lineHeight:1.5}}>{r.context}</div>
+    </div>;
+  }
+
+  return (
+    <div>
+      <div style={{fontSize:11,letterSpacing:3,color:"#ff7700",textTransform:"uppercase",marginBottom:16}}>Weather Extremes</div>
+      {localEx.length>0&&<div style={{marginBottom:24}}><div style={{fontSize:11,color:"#ff9944",letterSpacing:2,marginBottom:10}}>YOUR LOCATION FORECAST EXTREMES</div><div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(190px,1fr))",gap:8}}>{localEx.map(function(r,i){return Card(r,i);})}</div></div>}
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:8,marginBottom:12}}>
+        <div style={{fontSize:11,color:"#ff9944",letterSpacing:2}}>CURRENT WORLD RECORDS BEING BROKEN</div>
+        {!iLoaded&&<button onClick={fetchLive} disabled={iLoading} style={{padding:"6px 14px",borderRadius:10,border:"1px solid rgba(255,119,0,0.4)",background:"rgba(255,119,0,0.12)",color:"#ffaa44",fontSize:11,cursor:iLoading?"wait":"pointer"}}>{iLoading?"Searching...":"Search Live Records"}</button>}
+        {iLoaded&&<button onClick={function(){setLoaded(false);setLr([]);setError("");}} style={{padding:"6px 14px",borderRadius:10,border:"1px solid rgba(255,255,255,0.12)",background:"rgba(255,255,255,0.04)",color:"#888",fontSize:11,cursor:"pointer"}}>Refresh</button>}
+      </div>
+      {!iLoaded&&!iLoading&&<div style={{textAlign:"center",padding:"28px",color:"#555",border:"1px dashed rgba(255,255,255,0.07)",borderRadius:12,marginBottom:16,fontSize:12}}>Click "Search Live Records" to fetch current world weather extremes via AI web search.</div>}
+      {iLoading&&<div style={{textAlign:"center",padding:"28px",color:"#666",fontSize:12}}>Searching the web for current world weather records...</div>}
+      {iError&&<div style={{color:"#ff9944",fontSize:11,padding:"8px 12px",background:"rgba(255,119,0,0.07)",borderRadius:8,marginBottom:12}}>{iError}</div>}
+      {iLoaded&&iLr.length>0&&<div style={{marginBottom:24}}><div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(190px,1fr))",gap:8,marginBottom:6}}>{iLr.map(function(r,i){return Card(r,i);})}</div><div style={{fontSize:9,color:"#333",textAlign:"center"}}>Sourced via live web search</div></div>}
+      <div style={{marginBottom:8}}><div style={{fontSize:11,color:"#ff9944",letterSpacing:2,marginBottom:10}}>ALL-TIME WORLD RECORDS</div><div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(190px,1fr))",gap:8}}>{allTime.map(function(r,i){return Card(r,i);})}</div></div>
+    </div>
+  );
+}
+
+// ── Main App ──────────────────────────────────────────────────────────────────
+function App(){
+  var fd=useState([]);var iFd=fd[0];var setFd=fd[1];
+  var hr=useState(null);var iHr=hr[0];var setHr=hr[1];
+  var ln=useState("Loading...");var iLn=ln[0];var setLn=ln[1];
+  var dr=useState("");var iDr=dr[0];var setDr=dr[1];
+  var st=useState("");var iSt=st[0];var setSt=st[1];
+  var searching=useState(false);var iSearching=searching[0];var setSearching=searching[1];
+  var err=useState("");var iErr=err[0];var setErr=err[1];
+  var ap=useState("overview");var iAp=ap[0];var setAp=ap[1];
+  var showS=useState(false);var iShowS=showS[0];var setShowS=showS[1];
+  var units=useState({temp:"C",speed:"mph",rain:"mm",pressure:"mbar"});var iUnits=units[0];var setUnits=units[1];
+
+  useEffect(function(){fetch2("London");},[]);
+
+  async function fetch2(name){
+    setSearching(true);setErr("");
+    try{
+      var gR=await fetch("https://geocoding-api.open-meteo.com/v1/search?name="+encodeURIComponent(name)+"&count=1&language=en&format=json");
+      var gJ=await gR.json();
+      if(!gJ.results||!gJ.results.length){setErr("Location not found.");setSearching(false);return;}
+      var place=gJ.results[0];
+      var wR=await fetch("https://api.open-meteo.com/v1/forecast?latitude="+place.latitude+"&longitude="+place.longitude+"&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,precipitation_hours,windspeed_10m_max,windgusts_10m_max,relative_humidity_2m_mean,surface_pressure_mean,weathercode&hourly=temperature_2m,weathercode,precipitation_probability,precipitation,windspeed_10m,windgusts_10m,relativehumidity_2m,surface_pressure,cloudcover,uv_index,dewpoint_2m,visibility&timezone=auto&forecast_days=13");
+      var wJ=await wR.json();
+      var days=wJ.daily,hrs=wJ.hourly;
+      var data=days.time.map(function(t,i){
+        var temp=Math.round(days.temperature_2m_max[i]);
+        var mph=Math.round((days.windspeed_10m_max[i]||0)*0.621371);
+        var cond=condFromCode(days.weathercode[i]||0,temp);
+        var ds=new Date(t+"T12:00:00").toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"});
+        return{date:ds,temp:temp,low:Math.round(days.temperature_2m_min[i]),type:i<3?"confirmed":i<7?"near":"estimated",condition:cond,note:"Live forecast via Open-Meteo",wind:mph<5?"very light":mph<10?"light":mph<20?"moderate":"fresh",windMph:mph,gustMph:Math.round((days.windgusts_10m_max[i]||mph*1.3)*0.621371),rain:days.precipitation_probability_max[i]||0,humidity:Math.round(days.relative_humidity_2m_mean[i]||55),pressure:Math.round(days.surface_pressure_mean[i]||1013),rainMm:parseFloat((days.precipitation_sum[i]||0).toFixed(1)),rainHours:Math.round(days.precipitation_hours[i]||0)};
       });
-      setHourlyRaw({
-        times:hrs.time, temps:hrs.temperature_2m, codes:hrs.weathercode,
-        windMph:hrs.windspeed_10m.map(function(v){return Math.round((v||0)*0.621371);}),
-        gusts:hrs.windgusts_10m.map(function(v){return Math.round((v||0)*0.621371);}),
-        rain:hrs.precipitation_probability, rainMm:hrs.precipitation,
-        humidity:hrs.relativehumidity_2m, pressure:hrs.surface_pressure,
-        cloud:hrs.cloudcover, uv:hrs.uv_index, dewpoint:hrs.dewpoint_2m, vis:hrs.visibility,
-      });
-      setForecastData(data);
-      setLocationName(place.name+(place.admin1?", "+place.admin1:"")+(place.country_code?", "+place.country_code:""));
-      const first=new Date(days.time[0]+"T12:00:00"), last=new Date(days.time[days.time.length-1]+"T12:00:00");
-      setDateRange(first.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+" – "+last.toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"}));
-    } catch(e){ setSearchErr("Could not load forecast. Please try again."); }
+      setHr({times:hrs.time,temps:hrs.temperature_2m,codes:hrs.weathercode,windMph:hrs.windspeed_10m.map(function(v){return Math.round((v||0)*0.621371);}),gusts:hrs.windgusts_10m.map(function(v){return Math.round((v||0)*0.621371);}),rain:hrs.precipitation_probability,rainMm:hrs.precipitation,humidity:hrs.relativehumidity_2m,pressure:hrs.surface_pressure,cloud:hrs.cloudcover,uv:hrs.uv_index,dewpoint:hrs.dewpoint_2m,vis:hrs.visibility});
+      setFd(data);
+      setLn(place.name+(place.admin1?", "+place.admin1:"")+(place.country_code?", "+place.country_code:""));
+      var first=new Date(days.time[0]+"T12:00:00"),last=new Date(days.time[days.time.length-1]+"T12:00:00");
+      setDr(first.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+" - "+last.toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"}));
+    }catch(e){setErr("Could not load forecast. Check your connection and try again.");}
     setSearching(false);
   }
 
-  async function doSearch() {
-    if(!searchText.trim()) return;
-    await fetchLocation(searchText.trim());
-  }
+  function doSearch(){if(iSt.trim())fetch2(iSt.trim());}
+  function onKey(e){if(e.key==="Enter")doSearch();}
 
-  function handleKey(e){ if(e.key==="Enter") doSearch(); }
-
-  const pageSty = {fontFamily:"Georgia,'Times New Roman',serif",background:"linear-gradient(160deg,#0a0a1a 0%,#0d1525 40%,#0a0f1e 100%)",minHeight:"100vh",color:"#e8dcc8",overflowX:"hidden"};
-  const wrapSty = {position:"relative",zIndex:1,maxWidth:960,margin:"0 auto",padding:"24px 16px 60px"};
+  var u=iUnits;
+  var pageSty={fontFamily:"Georgia,'Times New Roman',serif",background:"linear-gradient(160deg,#0a0a1a 0%,#0d1525 40%,#0a0f1e 100%)",minHeight:"100vh",color:"#e8dcc8",overflowX:"hidden"};
+  var wrapSty={position:"relative",zIndex:1,maxWidth:960,margin:"0 auto",padding:"24px 16px 60px"};
 
   return (
     <div style={pageSty}>
-      {showSett && <SettingsPanel units={units} setUnits={setUnits} onClose={function(){setShowSett(false);}} />}
+      {iShowS&&<SettingsPanel units={u} setUnits={setUnits} onClose={function(){setShowS(false);}}/>}
       <div style={wrapSty}>
-
-        {/* ── Top bar ── */}
         <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:20,flexWrap:"wrap"}}>
-          <NavDropdown activePage={activePage} setActivePage={setActivePage} />
-          <input value={searchText} onChange={function(e){setSearchText(e.target.value);}} onKeyDown={handleKey} placeholder="Search any location..." style={{flex:1,minWidth:120,padding:"10px 12px",borderRadius:12,border:"1px solid rgba(255,255,255,0.15)",background:"rgba(255,255,255,0.05)",color:"#fff",fontSize:13,outline:"none"}}/>
-          <button onClick={doSearch} disabled={searching} style={{padding:"10px 14px",borderRadius:12,border:"none",background:searching?"#555":"#ff7700",color:"#fff",fontSize:13,fontWeight:"bold",cursor:searching?"wait":"pointer",whiteSpace:"nowrap",flexShrink:0}}>{searching?"Loading...":"Search"}</button>
-          <button onClick={function(){setShowSett(true);}} style={{padding:"10px 12px",borderRadius:12,border:"1px solid rgba(255,255,255,0.15)",background:"rgba(255,255,255,0.05)",color:"#aaa",fontSize:13,cursor:"pointer",flexShrink:0}}>Settings</button>
+          <NavDropdown activePage={iAp} setActivePage={setAp}/>
+          <input value={iSt} onChange={function(e){setSt(e.target.value);}} onKeyDown={onKey} placeholder="Search any location worldwide..." style={{flex:1,minWidth:120,padding:"10px 12px",borderRadius:12,border:"1px solid rgba(255,255,255,0.15)",background:"rgba(255,255,255,0.05)",color:"#fff",fontSize:13,outline:"none"}}/>
+          <button onClick={doSearch} disabled={iSearching} style={{padding:"10px 14px",borderRadius:12,border:"none",background:iSearching?"#555":"#ff7700",color:"#fff",fontSize:13,fontWeight:"bold",cursor:iSearching?"wait":"pointer",whiteSpace:"nowrap",flexShrink:0}}>{iSearching?"Loading...":"Search"}</button>
+          <button onClick={function(){setShowS(true);}} style={{padding:"10px 12px",borderRadius:12,border:"1px solid rgba(255,255,255,0.15)",background:"rgba(255,255,255,0.05)",color:"#aaa",fontSize:13,cursor:"pointer",flexShrink:0}}>Settings</button>
         </div>
-
-        {searchErr && <div style={{color:"#ff6666",fontSize:12,marginBottom:12,textAlign:"center"}}>{searchErr}</div>}
-
-        {/* Loading state */}
-        {forecastData.length === 0 && !searchErr && (
-          <div style={{textAlign:"center",padding:"60px 20px",color:"#555"}}>
-            <div style={{fontSize:36,marginBottom:12}}>🌍</div>
-            <div style={{fontSize:14,color:"#777"}}>Loading forecast for London...</div>
-          </div>
-        )}
-
-        {forecastData.length > 0 && (
+        {iErr&&<div style={{color:"#ff6666",fontSize:12,marginBottom:12,textAlign:"center"}}>{iErr}</div>}
+        {iFd.length===0&&!iErr&&<div style={{textAlign:"center",padding:"80px 20px",color:"#555"}}><div style={{fontSize:40,marginBottom:16}}>🌍</div><div style={{fontSize:14,color:"#666"}}>Loading forecast for London...</div></div>}
+        {iFd.length>0&&(
           <div>
-            {/* Page header */}
             <div style={{textAlign:"center",marginBottom:24}}>
-              <div style={{fontSize:11,letterSpacing:6,color:"#ff7700",textTransform:"uppercase",marginBottom:8}}>Forecast · {locationName}</div>
-              <h1 style={{fontSize:"clamp(20px,4vw,36px)",fontWeight:"normal",margin:"0 0 4px",color:"#fff",lineHeight:1.1}}>{dateRange}</h1>
-              <div style={{fontSize:12,color:"#9a8c7a",marginBottom:12}}>Daily maxima · Tap any card or bar for details</div>
+              <div style={{fontSize:11,letterSpacing:6,color:"#ff7700",textTransform:"uppercase",marginBottom:8}}>Forecast - {iLn}</div>
+              <h1 style={{fontSize:"clamp(18px,4vw,34px)",fontWeight:"normal",margin:"0 0 4px",color:"#fff",lineHeight:1.1}}>{iDr}</h1>
+              <div style={{fontSize:12,color:"#9a8c7a",marginBottom:12}}>Daily maxima - Tap any card or bar for details</div>
               <div style={{display:"flex",gap:16,justifyContent:"center",flexWrap:"wrap",fontSize:11,color:"#9a8c7a"}}>
-                {[{col:"#ff7700",label:"Confirmed",solid:true},{col:"#4a9fd4",label:"Near-term",solid:false},{col:"#555",label:"Estimated",solid:false}].map(function(l,i){
-                  return <span key={i} style={{display:"flex",alignItems:"center",gap:5}}><span style={{width:9,height:9,borderRadius:l.solid?2:"50%",background:l.col,display:"inline-block"}}/>{l.label}</span>;
-                })}
+                {[{col:"#ff7700",label:"Confirmed",solid:true},{col:"#4a9fd4",label:"Near-term",solid:false},{col:"#555",label:"Estimated",solid:false}].map(function(l,i){return <span key={i} style={{display:"flex",alignItems:"center",gap:5}}><span style={{width:9,height:9,borderRadius:l.solid?2:"50%",background:l.col,display:"inline-block"}}/>{l.label}</span>;})}
               </div>
             </div>
-
-            {/* Page content */}
-            {activePage==="overview" && <WeatherOverview forecastData={forecastData} locationName={locationName} dateRange={dateRange} units={units} />}
-            {activePage==="ten"      && <TenDayForecast  forecastData={forecastData} units={units} />}
-            {activePage==="hourly"   && <HourlyForecast  forecastData={forecastData} hourlyRaw={hourlyRaw} units={units} />}
-            {activePage==="graphs"   && <WeatherGraphs   forecastData={forecastData} hourlyRaw={hourlyRaw} units={units} />}
-            {activePage==="radar"    && <MapRadar        locationName={locationName} forecastData={forecastData} />}
-            {activePage==="extremes" && <WeatherExtremes forecastData={forecastData} locationName={locationName} units={units} />}
+            {iAp==="overview"&&<WeatherOverview forecastData={iFd} locationName={iLn} u={u}/>}
+            {iAp==="ten"&&<TenDayForecast forecastData={iFd} u={u}/>}
+            {iAp==="hourly"&&<HourlyForecast forecastData={iFd} hourlyRaw={iHr} u={u}/>}
+            {iAp==="graphs"&&<WeatherGraphs forecastData={iFd} hourlyRaw={iHr} u={u}/>}
+            {iAp==="radar"&&<MapRadar locationName={iLn} forecastData={iFd}/>}
+            {iAp==="extremes"&&<WeatherExtremes forecastData={iFd} locationName={iLn} u={u}/>}
           </div>
         )}
-
-        <div style={{textAlign:"center",marginTop:18,fontSize:11,color:"#4a4a5a",lineHeight:1.7}}>
-          Live forecast powered by Open-Meteo · {new Date().getFullYear()}
-        </div>
+        <div style={{textAlign:"center",marginTop:24,fontSize:11,color:"#4a4a5a",lineHeight:1.7}}>Live forecast powered by Open-Meteo</div>
       </div>
     </div>
   );
 }
 
-ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App,null));
 </script>
 </body>
 </html>
