@@ -814,58 +814,74 @@ function MapRadar(props){
   var locationName=props.locationName,forecastData=props.forecastData,lat=props.lat,lon=props.lon;
   var layer=useState("clouds_new");var iLayer=layer[0];var setLayer=layer[1];
   var layers=[
-    {id:"clouds_new",label:"Cloud Cover"},
-    {id:"precipitation_new",label:"Precipitation"},
-    {id:"pressure_new",label:"Pressure"},
-    {id:"wind_new",label:"Wind"},
-    {id:"temp_new",label:"Temperature"},
+    {id:"clouds_new",label:"☁️ Cloud Cover"},
+    {id:"precipitation_new",label:"🌧️ Precipitation"},
+    {id:"pressure_new",label:"📊 Pressure"},
+    {id:"wind_new",label:"💨 Wind"},
+    {id:"temp_new",label:"🌡️ Temperature"},
   ];
   var apiKey="ae1c71166a78c7c450b495408e5e0d53";
-  var mapRef=useRef(null);
-  var iframeRef=useRef(null);
-  // Use actual lat/lon passed from fetch, default to London if not available
   var mapLat=lat||51.5074;
   var mapLon=lon||-0.1278;
-  useEffect(function(){
-    if(!iframeRef.current)return;
-    var osmBase="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
-    var owmBase="https://tile.openweathermap.org/map/"+iLayer+"/{z}/{x}/{y}.png?appid="+apiKey;
-    var safeLocName=locationName.replace(/['"<>&]/g,"");
-    var zoomLevel=10; // zoom in to city level
-    var doc=[
-      "<!DOCTYPE html><html><head>",
-      "<link rel='stylesheet' href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'/>",
-      "<style>body{margin:0}#m{height:100vh;background:#0a0a1a}.leaflet-container{background:#0a0f1e}</style>",
-      "</head><body><div id='m'></div>",
-      "<script src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'></s"+"cript>",
-      "<script>",
-      "window.onload=function(){",
-      "var map=L.map('m',{zoomControl:true}).setView(["+mapLat+","+mapLon+"],"+zoomLevel+");",
-      "L.tileLayer('"+osmBase+"',{attribution:'&copy; OpenStreetMap',opacity:0.7,maxZoom:18}).addTo(map);",
-      "L.tileLayer('"+owmBase+"',{attribution:'&copy; OpenWeatherMap',opacity:0.6,maxZoom:18}).addTo(map);",
-      "var marker=L.marker(["+mapLat+","+mapLon+"]).addTo(map);",
-      "marker.bindPopup('<b>"+safeLocName+"</b>').openPopup();",
-      "};",
-      "</s"+"cript></body></html>"
-    ].join("");
-    var blob=new Blob([doc],{type:"text/html"});
-    var url=URL.createObjectURL(blob);
-    iframeRef.current.src=url;
-    return function(){URL.revokeObjectURL(url);};
-  },[iLayer,locationName,mapLat,mapLon]);
+  var zoom=10;
+
+  // Build bounding box for OSM embed (±0.5 degrees around location)
+  var delta=0.5;
+  var bbox=(mapLon-delta)+"%2C"+(mapLat-delta)+"%2C"+(mapLon+delta)+"%2C"+(mapLat+delta);
+  var osmEmbedUrl="https://www.openstreetmap.org/export/embed.html?bbox="+bbox+"&layer=mapnik&marker="+mapLat+"%2C"+mapLon;
+
+  // OWM weather layer tile URL (used as overlay info for user, can open in new tab)
+  var owmTileBase="https://tile.openweathermap.org/map/"+iLayer+"/{z}/{x}/{y}.png?appid="+apiKey;
+
+  // Direct link to open full interactive map in a new browser tab
+  var osmFullUrl="https://www.openstreetmap.org/?mlat="+mapLat+"&mlon="+mapLon+"#map="+zoom+"/"+mapLat+"/"+mapLon;
+  var owmFullUrl="https://openweathermap.org/weathermap?basemap=map&cities=true&layer="+iLayer+"&lat="+mapLat+"&lon="+mapLon+"&zoom="+zoom;
+
   return (
     <div>
       <div style={{fontSize:11,letterSpacing:3,color:"#ff7700",textTransform:"uppercase",marginBottom:16}}>Map and Radar</div>
-      <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:12}}>
+
+      {/* Weather layer selector */}
+      <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:10}}>
         {layers.map(function(l){var on=iLayer===l.id;return <button key={l.id} onClick={function(){setLayer(l.id);}} style={{padding:"5px 11px",borderRadius:20,border:"1px solid",borderColor:on?"#ff7700":"rgba(255,255,255,0.12)",background:on?"rgba(255,119,0,0.18)":"rgba(255,255,255,0.03)",color:on?"#ffaa44":"#888",fontSize:11,cursor:"pointer"}}>{l.label}</button>;})}
       </div>
-      <div style={{fontSize:11,color:"#666",marginBottom:8}}>📍 Centred on: <span style={{color:"#aaa"}}>{locationName}</span></div>
-      <div ref={mapRef} style={{borderRadius:14,overflow:"hidden",border:"1px solid rgba(255,255,255,0.1)",height:420,marginBottom:16}}>
-        <iframe ref={iframeRef} style={{width:"100%",height:"100%",border:"none"}} title="Weather Map"/>
+
+      {/* Location info + external links */}
+      <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:8,marginBottom:10}}>
+        <div style={{fontSize:11,color:"#666"}}>📍 <span style={{color:"#aaa"}}>{locationName}</span> <span style={{color:"#444",fontSize:10}}>({mapLat.toFixed(3)}°N, {mapLon.toFixed(3)}°E)</span></div>
+        <div style={{display:"flex",gap:8}}>
+          <a href={osmFullUrl} target="_blank" rel="noopener noreferrer" style={{padding:"5px 11px",borderRadius:10,border:"1px solid rgba(255,255,255,0.15)",background:"rgba(255,255,255,0.05)",color:"#aaa",fontSize:11,textDecoration:"none",cursor:"pointer"}}>🗺️ Open in OSM</a>
+          <a href={owmFullUrl} target="_blank" rel="noopener noreferrer" style={{padding:"5px 11px",borderRadius:10,border:"1px solid rgba(255,119,0,0.3)",background:"rgba(255,119,0,0.08)",color:"#ffaa44",fontSize:11,textDecoration:"none",cursor:"pointer"}}>🌦️ Open Weather Map</a>
+        </div>
       </div>
-      {forecastData.length>0&&<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(130px,1fr))",gap:8}}>
-        {forecastData.slice(0,6).map(function(d,i){return <div key={i} style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:10,padding:"10px",textAlign:"center"}}><div style={{fontSize:9,color:"#666",marginBottom:3}}>{d.date.split(" ").slice(0,2).join(" ")}</div><div style={{fontSize:22}}>{d.condition}</div><div style={{fontSize:15,fontWeight:"bold",color:tc(d.temp)}}>{fmtTemp(d.temp,"C")}</div><div style={{fontSize:10,color:rc(d.rain),marginTop:2}}>{d.rain}% rain</div></div>;})}
-      </div>}
+
+      {/* OSM embed iframe — works when file is opened locally in a browser */}
+      <div style={{borderRadius:14,overflow:"hidden",border:"1px solid rgba(255,255,255,0.1)",height:440,marginBottom:12,position:"relative"}}>
+        <iframe
+          src={osmEmbedUrl}
+          style={{width:"100%",height:"100%",border:"none"}}
+          title="OpenStreetMap"
+          allowFullScreen={true}
+          loading="lazy"
+          referrerPolicy="no-referrer-when-downgrade"
+        />
+      </div>
+
+      {/* Weather overlay note */}
+      <div style={{background:"rgba(255,119,0,0.06)",border:"1px solid rgba(255,119,0,0.15)",borderRadius:10,padding:"10px 14px",marginBottom:16,fontSize:11,color:"#9a8c7a",lineHeight:1.6}}>
+        <b style={{color:"#ff9944"}}>Weather overlay selected: {layers.find(function(l){return l.id===iLayer;}).label}</b><br/>
+        The map above shows your location on OpenStreetMap. To view the live <b style={{color:"#ffaa44"}}>{layers.find(function(l){return l.id===iLayer;}).label}</b> weather overlay, click <b style={{color:"#ffaa44"}}>"Open Weather Map"</b> above — it opens the full interactive weather radar map centred on {locationName} in a new tab.
+      </div>
+
+      {/* Forecast mini-cards */}
+      {forecastData.length>0&&(
+        <div>
+          <div style={{fontSize:10,letterSpacing:2,color:"#555",textTransform:"uppercase",marginBottom:8}}>6-Day Forecast Snapshot</div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(130px,1fr))",gap:8}}>
+            {forecastData.slice(0,6).map(function(d,i){return <div key={i} style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:10,padding:"10px",textAlign:"center"}}><div style={{fontSize:9,color:"#666",marginBottom:3}}>{d.date.split(" ").slice(0,2).join(" ")}</div><div style={{fontSize:22}}>{d.condition}</div><div style={{fontSize:15,fontWeight:"bold",color:tc(d.temp)}}>{fmtTemp(d.temp,"C")}</div><div style={{fontSize:10,color:rc(d.rain),marginTop:2}}>{d.rain}% rain</div></div>;})}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
