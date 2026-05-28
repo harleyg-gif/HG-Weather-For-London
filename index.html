@@ -54,8 +54,11 @@ function hc(h){return h>=80?"#7755cc":h>=60?"#9977dd":h>=40?"#bbaaee":"#ddccff";
 function wc(w){return w>=30?"#ff7722":w>=20?"#ffaa44":w>=10?"#ffcc88":"#fff0cc";}
 function pc(p){return p>=1030?"#ff6600":p>=1020?"#ffaa00":p>=1010?"#88ddff":p>=1000?"#6699cc":"#9955cc";}
 function bgc(t){return t>=33?"rgba(255,45,0,0.18)":t>=30?"rgba(255,100,0,0.14)":t>=27?"rgba(255,140,0,0.11)":t>=24?"rgba(255,170,0,0.09)":t>=21?"rgba(255,200,0,0.08)":t>=18?"rgba(180,210,0,0.08)":"rgba(74,159,212,0.06)";}
-function uvCol(uv){return uv>=8?"#ff1500":uv>=6?"#ff6600":uv>=3?"#ffcc00":uv>0?"#7bbf44":"#555";}
-function uvLbl(uv){return uv>=8?"Extreme":uv>=6?"Very High":uv>=3?"Moderate":uv>0?"Low":"None";}
+
+// FIX 4: Corrected UV classification - 0-2 Low, 3-5 Moderate, 6-7 High, 8-10 Very High, 11+ Extreme
+function uvCol(uv){return uv>=11?"#ff1500":uv>=8?"#ff6600":uv>=6?"#ffaa00":uv>=3?"#ffcc00":uv>0?"#7bbf44":"#555";}
+function uvLbl(uv){return uv>=11?"Extreme":uv>=8?"Very High":uv>=6?"High":uv>=3?"Moderate":uv>0?"Low":"None";}
+function uvProtect(uv){return uv>=11?"Extreme — avoid all sun exposure":uv>=8?"Very High — protection essential":uv>=6?"High — protection essential":uv>=3?"Moderate — apply sunscreen":uv>0?"Low risk":"No UV";}
 
 // ── Wind ─────────────────────────────────────────────────────────────────────
 function windCat(mph){
@@ -67,27 +70,58 @@ function windCat(mph){
 
 // ── Feel-like ────────────────────────────────────────────────────────────────
 function condBonus(cond,temp,shade){
-  var isRain=cond.includes("\u{1F327}")||cond.includes("\u26C8")||cond.includes("\u{1F326}");
-  var eff=shade?(isRain?cond:"\u2601\uFE0F"):cond;
-  if(eff.includes("\u26C8"))return -5;if(eff.includes("\u{1F327}"))return -4;
-  if(eff.includes("\u{1F326}"))return -4;if(eff.includes("\u2601"))return -2;
-  if(eff.includes("\u26C5"))return 0;if(eff.includes("\u{1F324}"))return 1;
-  if(eff.includes("\u{1F321}"))return temp>40?8:temp>35?7:temp>30?6:temp>25?5:4;
-  if(eff.includes("\u2600"))return temp>40?8:temp>35?7:temp>30?6:temp>25?5:temp>20?4:3;
+  var isRain=cond.includes("🌧")||cond.includes("🌧🌧")||cond.includes("⛈")||cond.includes("🌦")||cond.includes("💧");
+  var eff=shade?(isRain?cond:"☁️"):cond;
+  if(eff.includes("⛈"))return -5;if(eff.includes("🌧🌧"))return -5;if(eff.includes("🌧"))return -4;
+  if(eff.includes("🌦"))return -4;if(eff.includes("💧"))return -3;
+  if(eff.includes("☁"))return -2;if(eff.includes("⛅"))return 0;if(eff.includes("🌤"))return 1;
+  if(eff.includes("🌡"))return temp>40?8:temp>35?7:temp>30?6:temp>25?5:4;
+  if(eff.includes("☀"))return temp>40?8:temp>35?7:temp>30?6:temp>25?5:temp>20?4:3;
   return 0;
 }
 function humBonus(h){if(h<=10)return -2;if(h<=20)return -1;if(h<=30)return 0;if(h<=40)return 1;if(h<=50)return 2;if(h<=60)return 3;if(h<=70)return 4;if(h<=80)return 6;if(h<=90)return 8;return 10;}
 function windBonus(m){if(m<5)return 1;if(m<10)return 0;if(m<15)return -1;if(m<20)return -3;if(m<30)return -5;if(m<40)return -6;if(m<50)return -8;if(m<60)return -13;return -30;}
 function sunFeel(t,m,h,c){return Math.round(t+condBonus(c,t,false)+humBonus(h)+windBonus(m));}
 function shadeFeel(t,m,h,c){return Math.round(t+condBonus(c,t,true)+humBonus(h)+windBonus(m));}
-function hasSun(c){return c.includes("\u2600")||c.includes("\u{1F321}")||c.includes("\u{1F324}")||c.includes("\u26C5");}
+function hasSun(c){return c.includes("☀")||c.includes("🌡")||c.includes("🌤")||c.includes("⛅");}
 
-// ── WMO code to emoji ────────────────────────────────────────────────────────
-function condFromCode(code,temp){
-  if(code===0)return temp>=30?"\u{1F321}\uFE0F":"\u2600\uFE0F";
-  if(code<=2)return "\u26C5";if(code<=3)return "\u2601\uFE0F";if(code<=48)return "\u2601\uFE0F";
-  if(code<=57)return "\u{1F326}";if(code<=67)return "\u{1F327}";if(code<=77)return "\u{1F328}\uFE0F";
-  if(code<=82)return "\u{1F326}";if(code<=86)return "\u{1F328}\uFE0F";return "\u26C8\uFE0F";
+// FIX 3: Improved condition from WMO code using cloud cover and rain intensity
+// condFromCode now accepts cloudCover and precipitation amount for better icons
+function condFromCode(code,temp,cloudPct,precipMm){
+  var cloud=cloudPct!=null?cloudPct:50;
+  var precip=precipMm!=null?precipMm:0;
+  // Thunderstorm codes
+  if(code>=95)return "⛈️";
+  // Heavy snow
+  if(code>=71&&code<=77)return "❄️";
+  // Rain/drizzle codes
+  if(code>=60&&code<=67){
+    // Drizzle (60-67 with low amounts or drizzle codes 51-57)
+    if(code>=60&&code<=61)return "💧";
+    if(code>=62&&code<=65){
+      // moderate/heavy rain - check cloud cover
+      if(cloud>=60)return precip>=3?"🌧️🌧️":"🌧️";
+      return "🌦️";
+    }
+    if(code>=66&&code<=67)return "🌧️"; // freezing rain
+  }
+  if(code>=51&&code<=57){
+    if(code>=55)return "🌧️";
+    return "💧";
+  }
+  // Showers (80-86)
+  if(code>=80&&code<=82){
+    if(cloud>=60)return precip>=3?"🌧️🌧️":"🌧️";
+    return "🌦️";
+  }
+  if(code>=83&&code<=86)return "❄️";
+  // Fog
+  if(code>=40&&code<=48)return "🌫️";
+  // Clear/cloudy
+  if(code===0)return temp>=30?"🌡️":"☀️";
+  if(code<=2)return "⛅";
+  if(code<=3)return "☁️";
+  return "☁️";
 }
 
 // ── Period breakdown ─────────────────────────────────────────────────────────
@@ -113,22 +147,22 @@ function buildHourly(forecastData,hourlyRaw,dayIndex){
       var h=parseInt(t.split("T")[1].split(":")[0]);
       var temp=Math.round((hourlyRaw.temps[i]||0)*10)/10;
       var code=hourlyRaw.codes[i]||0;
-      var cond=condFromCode(code,Math.round(temp));
-      if((h<6||h>=21)&&(cond.includes("\u2600")||cond.includes("\u{1F321}")))cond="\u{1F319}";
+      var cloud=Math.round(hourlyRaw.cloud[i]||0);
+      var rainMmHr=parseFloat((hourlyRaw.rainMm[i]||0).toFixed(1));
+      var cond=condFromCode(code,Math.round(temp),cloud,rainMmHr);
+      if((h<6||h>=21)&&(cond.includes("☀")||cond.includes("🌡")))cond="🌙";
       var mph=hourlyRaw.windMph[i]||0;
       var gust=hourlyRaw.gusts[i]||Math.round(mph*1.3);
       var hum=Math.round(hourlyRaw.humidity[i]||55);
       var pres=Math.round(hourlyRaw.pressure[i]||1013);
-      var cloud=Math.round(hourlyRaw.cloud[i]||0);
       var uv=Math.round(hourlyRaw.uv[i]||0);
       var rainC=Math.round(hourlyRaw.rain[i]||0);
-      var rainMm=parseFloat((hourlyRaw.rainMm[i]||0).toFixed(1));
       var dewp=hourlyRaw.dewpoint?Math.round(hourlyRaw.dewpoint[i]):Math.round(temp-((100-hum)/5));
       var vis=hourlyRaw.vis&&hourlyRaw.vis[i]!==null?(hourlyRaw.vis[i]>=20000?"Excellent (20km+)":hourlyRaw.vis[i]>=10000?"Good (10-20km)":hourlyRaw.vis[i]>=5000?"Moderate (5-10km)":"Poor (<5km)"):"Good";
       var dirs=["N","NE","NE","E","SE","SE","S","SW","SW","W","NW","NW"];
       var windDir=dirs[Math.floor((dayIndex*4+h/6))%12];
       var fl=Math.round(temp+condBonus(cond,temp,false)+humBonus(hum)+windBonus(mph));
-      hrs.push({hour:h,timeStr:(h<10?"0":"")+h+":00",temp:temp,feelsLike:fl,condition:cond,windMph:mph,gustMph:gust,windDir:windDir,humidity:hum,dewPoint:dewp,pressure:pres,rainChance:rainC,rainMm:rainMm,uv:uv,cloud:cloud,visibility:vis});
+      hrs.push({hour:h,timeStr:(h<10?"0":"")+h+":00",temp:temp,feelsLike:fl,condition:cond,windMph:mph,gustMph:gust,windDir:windDir,humidity:hum,dewPoint:dewp,pressure:pres,rainChance:rainC,rainMm:rainMmHr,uv:uv,cloud:cloud,visibility:vis});
     });
     return hrs;
   }
@@ -147,14 +181,15 @@ function buildHourly(forecastData,hourlyRaw,dayIndex){
     var hum=Math.min(99,Math.max(10,Math.round(d.humidity+(isN?12:h>=12&&h<=16?-10:0))));
     var rainC=d.rain;
     var rainMm=0;
-    if(d.rainHours>0){var rp=d.condition.includes("\u26C8")?(h>=14&&h<=18):(h>=8&&h<=14);if(rp)rainC=Math.min(99,d.rain+20);rainMm=parseFloat((d.rainMm*(rp?0.12:0.02)).toFixed(1));}
+    if(d.rainHours>0){var rp=d.condition.includes("⛈")?(h>=14&&h<=18):(h>=8&&h<=14);if(rp)rainC=Math.min(99,d.rain+20);rainMm=parseFloat((d.rainMm*(rp?0.12:0.02)).toFixed(1));}
     var pres=Math.round(d.pressure+(d.temp>28&&h>=12&&h<=16?-1:0));
     var cond=d.condition;
-    if(isN)cond=d.condition.includes("\u26C8")?"\u{1F327}":d.condition.includes("\u{1F327}")?"\u{1F327}":"\u{1F319}";
+    if(isN)cond=d.condition.includes("⛈")||d.condition.includes("🌧")||d.condition.includes("💧")?"🌧️":"🌙";
     var sp=h>=6&&h<=20?(1-Math.abs((h-13)/7)):0;
-    var maxUv=d.temp>=35?9:d.temp>=30?8:d.temp>=25?7:d.temp>=20?5:4;
-    var uv=d.condition.includes("\u2601")?Math.round(maxUv*0.3*sp):Math.round(maxUv*sp*sp);
-    var cloud=cond.includes("\u2600")||cond.includes("\u{1F321}")?10:cond.includes("\u{1F324}")?30:cond.includes("\u26C5")?55:cond.includes("\u2601")?85:90;
+    // FIX 4: improved UV max based on actual UV index data (use d.uvMax if available)
+    var maxUv=d.uvMax!=null?d.uvMax:(d.temp>=40?12:d.temp>=35?10:d.temp>=30?9:d.temp>=25?7:d.temp>=20?5:4);
+    var uv=cond.includes("☁")?Math.round(maxUv*0.3*sp):Math.round(maxUv*sp*sp);
+    var cloud=cond.includes("☀")||cond.includes("🌡")?10:cond.includes("🌤")?30:cond.includes("⛅")?55:cond.includes("☁")?85:90;
     var vis=hum>80?"Poor (<5km)":hum>65?"Moderate (5-10km)":hum>45?"Good (10-20km)":"Excellent (20km+)";
     var dewp=Math.round(temp-((100-hum)/5));
     var dirs=["N","NE","NE","E","SE","SE","S","SW","SW","W","NW","NW"];
@@ -313,13 +348,11 @@ function BarChart(props){
   var maxP=n>0?Math.max.apply(null,forecastData.map(function(d){return d.pressure;})):1035;
   var minP=n>0?Math.min.apply(null,forecastData.map(function(d){return d.pressure;})):995;
   var maxRmm=n>0?Math.max.apply(null,forecastData.map(function(d){return d.rainMm;})):1;
-
   var MONTH_RECORDS=[
     {temp:32.8,label:"MAY REC 32.8",color:"rgba(255,160,0,0.85)",startIdx:0,endIdx:6},
     {temp:35.6,label:"JUN REC 35.6",color:"rgba(255,80,0,0.85)",startIdx:7,endIdx:36},
     {temp:40.2,label:"JUL REC 40.2",color:"rgba(200,0,255,0.85)",startIdx:37,endIdx:61},
   ];
-
   var gd;
   if(graph==="rain"){gd={values:forecastData.map(function(d){return d.rain;}),colors:forecastData.map(function(d){return rc(d.rain);}),max:100};}
   else if(graph==="rainmm"){gd={values:forecastData.map(function(d){return d.rainMm;}),colors:forecastData.map(function(d){return rc(d.rain);}),max:Math.max(maxRmm,1)};}
@@ -327,7 +360,6 @@ function BarChart(props){
   else if(graph==="wind"){gd={values:forecastData.map(function(d){return d.windMph;}),colors:forecastData.map(function(d){return wc(d.windMph);}),max:Math.max(40,Math.max.apply(null,forecastData.map(function(d){return d.windMph;})))};}
   else if(graph==="pressure"){gd={values:forecastData.map(function(d){return d.pressure;}),colors:forecastData.map(function(d){return pc(d.pressure);}),max:maxP};}
   else{gd={values:forecastData.map(function(d){return d.temp;}),colors:forecastData.map(function(d){return tc(d.temp);}),max:maxT};}
-
   return (
     <div style={{position:"relative",height:155}}>
       {graph==="temp"&&isLondon&&MONTH_RECORDS.map(function(rec,ri){
@@ -372,9 +404,117 @@ function BarChart(props){
   );
 }
 
+// ── FIX 3: Current Weather Section ───────────────────────────────────────────
+function CurrentWeather(props){
+  var forecastData=props.forecastData,hourlyRaw=props.hourlyRaw,locationName=props.locationName,u=props.u,lat=props.lat,lon=props.lon;
+  var cur=useState(null);var iCur=cur[0];var setCur=cur[1];
+  var loading=useState(true);var iLoading=loading[0];var setLoading=loading[1];
+
+  useEffect(function(){
+    if(!lat||!lon){setLoading(false);return;}
+    setLoading(true);
+    // Fetch current conditions from Open-Meteo current weather endpoint
+    fetch("https://api.open-meteo.com/v1/forecast?latitude="+lat+"&longitude="+lon+"&current=temperature_2m,apparent_temperature,weathercode,windspeed_10m,windgusts_10m,relativehumidity_2m,surface_pressure,cloudcover,uv_index,precipitation,is_day&timezone=auto")
+    .then(function(r){return r.json();})
+    .then(function(j){
+      var c=j.current;
+      if(!c){setLoading(false);return;}
+      var code=c.weathercode||0;
+      var cloud=c.cloudcover||0;
+      var precip=c.precipitation||0;
+      var isDay=c.is_day!==0;
+      var temp=Math.round(c.temperature_2m||0);
+      var cond=condFromCode(code,temp,cloud,precip);
+      if(!isDay&&(cond.includes("☀")||cond.includes("🌡")))cond="🌙";
+      var mph=Math.round((c.windspeed_10m||0)*0.621371);
+      var gust=Math.round((c.windgusts_10m||mph*1.3)*0.621371);
+      var uv=Math.round(c.uv_index||0);
+      var hum=Math.round(c.relativehumidity_2m||50);
+      var pres=Math.round(c.surface_pressure||1013);
+      var fl=Math.round(c.apparent_temperature||temp);
+      // Heat index for display
+      var hi=null;
+      if(hasSun(cond)&&temp>=27){
+        hi=sunFeel(temp,mph,hum,cond);
+      }
+      // Thunder density placeholder (Open-Meteo doesn't give strike density)
+      var strikeDensity=null;
+      if(cond.includes("⛈")){
+        // estimate based on instability proxy: high temp + high humidity
+        var instability=Math.max(0,(temp-25)*0.3+(hum-50)*0.1);
+        strikeDensity=Math.round(instability*10)/10;
+      }
+      setCur({temp:temp,feelsLike:fl,condition:cond,windMph:mph,gustMph:gust,humidity:hum,pressure:pres,uv:uv,cloud:cloud,precip:precip,isDay:isDay,heatIndex:hi,strikeDensity:strikeDensity,code:code});
+      setLoading(false);
+    })
+    .catch(function(){setLoading(false);});
+  },[lat,lon]);
+
+  if(iLoading)return <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:16,padding:"20px",marginBottom:24,textAlign:"center",color:"#555",fontSize:12}}>Loading current conditions...</div>;
+  if(!iCur)return null;
+
+  var col=tc(iCur.temp);
+  var condLabel=iCur.condition.includes("⛈")?"Thunderstorm":
+    iCur.condition.includes("🌧️🌧️")?"Heavy Rain":
+    iCur.condition.includes("🌧")?"Moderate Rain":
+    iCur.condition.includes("🌦")?"Light Rain with Sun":
+    iCur.condition.includes("💧")?"Light Drizzle":
+    iCur.condition.includes("❄")?"Snow":
+    iCur.condition.includes("🌫")?"Foggy":
+    iCur.condition.includes("☁")?"Overcast":
+    iCur.condition.includes("⛅")?"Partly Cloudy":
+    iCur.condition.includes("🌤")?"Mostly Sunny":
+    iCur.condition.includes("🌡")?"Hot & Sunny":
+    iCur.condition.includes("☀")?"Sunny":
+    iCur.condition.includes("🌙")?"Clear Night":"Clear";
+
+  return (
+    <div style={{background:"linear-gradient(135deg,rgba(255,119,0,0.06),rgba(74,159,212,0.04))",border:"1px solid rgba(255,119,0,0.2)",borderRadius:16,padding:"20px",marginBottom:24}}>
+      <div style={{fontSize:10,letterSpacing:4,color:"#ff7700",textTransform:"uppercase",marginBottom:12}}>Current Conditions — {locationName}</div>
+      <div style={{display:"flex",alignItems:"center",gap:16,flexWrap:"wrap",marginBottom:14}}>
+        <span style={{fontSize:52,lineHeight:1}}>{iCur.condition}</span>
+        <div>
+          <div style={{fontSize:44,fontWeight:"bold",color:col,lineHeight:1}}>{fmtTemp(iCur.temp,u.temp)}</div>
+          <div style={{fontSize:13,color:"#888",marginTop:2}}>{condLabel}</div>
+          <div style={{fontSize:12,color:"#999",marginTop:1}}>Feels like <span style={{color:tc(iCur.feelsLike)}}>{fmtTemp(iCur.feelsLike,u.temp)}</span></div>
+        </div>
+        {iCur.heatIndex!=null&&(
+          <div style={{background:"rgba(255,80,0,0.12)",border:"1px solid rgba(255,80,0,0.3)",borderRadius:12,padding:"10px 14px"}}>
+            <div style={{fontSize:9,color:"#ff9944",textTransform:"uppercase",letterSpacing:1,marginBottom:3}}>Heat Index (In Sun)</div>
+            <div style={{fontSize:26,fontWeight:"bold",color:tc(iCur.heatIndex)}}>{fmtTemp(iCur.heatIndex,u.temp)}</div>
+          </div>
+        )}
+        {iCur.strikeDensity!=null&&(
+          <div style={{background:"rgba(255,200,0,0.1)",border:"1px solid rgba(255,200,0,0.3)",borderRadius:12,padding:"10px 14px"}}>
+            <div style={{fontSize:9,color:"#ffcc00",textTransform:"uppercase",letterSpacing:1,marginBottom:3}}>Est. Strike Density</div>
+            <div style={{fontSize:22,fontWeight:"bold",color:"#ffcc00"}}>{iCur.strikeDensity} <span style={{fontSize:11,color:"#888"}}>fl/km²</span></div>
+            <div style={{fontSize:10,color:"#888"}}>⚠️ Stay indoors</div>
+          </div>
+        )}
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(110px,1fr))",gap:8}}>
+        {[
+          {label:"Wind",val:fmtSpd(iCur.windMph,u.speed),sub:"Gusts "+fmtSpd(iCur.gustMph,u.speed),col:wc(iCur.windMph),icon:"💨"},
+          {label:"Humidity",val:iCur.humidity+"%",sub:"Dew "+fmtTemp(Math.round(iCur.temp-((100-iCur.humidity)/5)),u.temp),col:hc(iCur.humidity),icon:"💧"},
+          {label:"Pressure",val:fmtPres(iCur.pressure,u.pressure),sub:iCur.pressure>=1020?"High":iCur.pressure>=1010?"Normal":"Low",col:pc(iCur.pressure),icon:"📊"},
+          {label:"UV Index",val:iCur.uv+" — "+uvLbl(iCur.uv),sub:uvProtect(iCur.uv),col:uvCol(iCur.uv),icon:"☀️"},
+          {label:"Cloud Cover",val:iCur.cloud+"%",sub:iCur.cloud<20?"Clear sky":iCur.cloud<50?"Partly cloudy":"Overcast",col:"#aaa",icon:"☁️"},
+          {label:"Rainfall",val:iCur.precip>0?fmtRain(iCur.precip,u.rain):"None",sub:"Current hour",col:rc(iCur.precip>0?80:0),icon:"🌧️"},
+        ].map(function(item,i){
+          return <div key={i} style={{background:"rgba(0,0,0,0.25)",borderRadius:10,padding:"8px 10px"}}>
+            <div style={{fontSize:10,color:"#555",marginBottom:3}}>{item.icon} {item.label}</div>
+            <div style={{fontSize:13,fontWeight:"bold",color:item.col,lineHeight:1.2}}>{item.val}</div>
+            <div style={{fontSize:9,color:"#555",marginTop:2}}>{item.sub}</div>
+          </div>;
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ── Weather Overview ──────────────────────────────────────────────────────────
 function WeatherOverview(props){
-  var forecastData=props.forecastData,locationName=props.locationName,units=props.u;
+  var forecastData=props.forecastData,locationName=props.locationName,units=props.u,hourlyRaw=props.hourlyRaw,lat=props.lat,lon=props.lon;
   var u=units;
   var sel=useState(null);var iSel=sel[0];var setSel=sel[1];
   var graph=useState("temp");var iGraph=graph[0];var setGraph=graph[1];
@@ -384,6 +524,7 @@ function WeatherOverview(props){
   var panel={background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.10)",borderRadius:16,padding:"20px 16px 14px",marginBottom:26};
   return (
     <div>
+      <CurrentWeather forecastData={forecastData} hourlyRaw={hourlyRaw} locationName={locationName} u={u} lat={lat} lon={lon}/>
       <div style={panel}>
         <div style={{display:"flex",gap:5,marginBottom:14,flexWrap:"wrap",alignItems:"center"}}>
           {tabs.map(function(t){var on=iGraph===t.id;return <button key={t.id} onClick={function(){setGraph(t.id);setSel(null);}} style={{padding:"5px 10px",borderRadius:20,border:"1px solid",borderColor:on?"#ff7700":"rgba(255,255,255,0.12)",background:on?"rgba(255,119,0,0.18)":"rgba(255,255,255,0.03)",color:on?"#ffaa44":"#888",fontSize:11,cursor:"pointer"}}>{t.label}</button>;})}
@@ -406,12 +547,12 @@ function WeatherOverview(props){
         <div style={{fontSize:11,letterSpacing:4,color:"#ff7700",textTransform:"uppercase",marginBottom:14}}>About This Forecast</div>
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))",gap:14}}>
           {[
-            {icon:"\u{1F4CA}",title:"13-Day Outlook",text:"Forecast covers 13 days. The first 3 days are high confidence. Days 4-7 are near-term estimates. Beyond day 7, treat as indicative only."},
-            {icon:"\u{1F321}\uFE0F",title:"Feel-Like Temps",text:"Feels-like temperatures account for wind chill, humidity and solar radiation. In sun vs shade can differ by 10°C or more on hot days."},
-            {icon:"\u{1F4A7}",title:"Rainfall Data",text:"Rain chance is the probability of any measurable rainfall. The mm figure is the expected total if rain falls. Both are shown for each day."},
-            {icon:"\u{1F4A8}",title:"Wind Forecasts",text:"Wind speeds are 10m surface winds. Gusts can be significantly higher. Strong Breeze (20-30 mph) can affect outdoor activities."},
-            {icon:"\u{1F30D}",title:"Data Source",text:"Forecasts are powered by Open-Meteo, a free and open weather API using ECMWF and other model data updated hourly."},
-            {icon:"\u26A1",title:"Storm Risk",text:"Storm risk is flagged when temperature exceeds 28°C and humidity exceeds 50%, creating convective instability conditions."},
+            {icon:"📊",title:"13-Day Outlook",text:"Forecast covers 13 days. The first 3 days are high confidence. Days 4-7 are near-term estimates. Beyond day 7, treat as indicative only."},
+            {icon:"🌡️",title:"Feel-Like Temps",text:"Feels-like temperatures account for wind chill, humidity and solar radiation. In sun vs shade can differ by 10°C or more on hot days."},
+            {icon:"💧",title:"Rainfall Data",text:"Rain chance is the probability of any measurable rainfall. The mm figure is the expected total if rain falls. Both are shown for each day."},
+            {icon:"💨",title:"Wind Forecasts",text:"Wind speeds are 10m surface winds. Gusts can be significantly higher. Strong Breeze (20-30 mph) can affect outdoor activities."},
+            {icon:"🌍",title:"Data Source",text:"Forecasts are powered by Open-Meteo, a free and open weather API using ECMWF and other model data updated hourly."},
+            {icon:"⚡",title:"Storm Risk",text:"Storm risk is flagged when temperature exceeds 28°C and humidity exceeds 50%, creating convective instability conditions."},
           ].map(function(r,i){return <div key={i} style={{display:"flex",gap:12}}><span style={{fontSize:22,flexShrink:0}}>{r.icon}</span><div><div style={{fontSize:13,color:"#e8dcc8",fontWeight:"bold",marginBottom:4}}>{r.title}</div><div style={{fontSize:12,color:"#7a6e5e",lineHeight:1.55}}>{r.text}</div></div></div>;})}
         </div>
       </div>
@@ -517,7 +658,9 @@ function HourlyForecast(props){
           var suT=Math.round(h.temp+condBonus(h.condition,h.temp,false)+humBonus(h.humidity)+windBonus(h.windMph));
           var hasSunHr=hasSun(h.condition);
           var msgs=[];
-          if(h.uv>=8)msgs.push("Extreme UV — avoid prolonged sun exposure.");
+          // FIX 4: updated UV thresholds in messages
+          if(h.uv>=11)msgs.push("Extreme UV — avoid all sun exposure.");
+          else if(h.uv>=8)msgs.push("Very High UV — protection essential.");
           else if(h.uv>=6)msgs.push("High UV — sunscreen essential.");
           else if(h.uv>=3)msgs.push("Moderate UV — apply sunscreen.");
           if(suT>=38)msgs.push("Dangerously hot in direct sun.");
@@ -553,8 +696,8 @@ function HourlyForecast(props){
                     <div><div style={{fontSize:9,color:"#555",textTransform:"uppercase",letterSpacing:1}}>Gusts</div><div style={{color:wc(h.gustMph),fontWeight:"bold"}}>{fmtSpd(h.gustMph,u.speed)}</div><div style={{fontSize:10,color:"#666"}}>{windCat(h.gustMph)}</div></div>
                     <div><div style={{fontSize:9,color:"#555",textTransform:"uppercase",letterSpacing:1}}>Rain Chance</div><div style={{color:rc(h.rainChance),fontWeight:"bold"}}>{h.rainChance}%</div>{h.rainMm>0&&<div style={{fontSize:10,color:rc(h.rainChance)}}>{fmtRain(h.rainMm,u.rain)} expected</div>}</div>
                     <div><div style={{fontSize:9,color:"#555",textTransform:"uppercase",letterSpacing:1}}>Humidity</div><div style={{color:hc(h.humidity),fontWeight:"bold"}}>{h.humidity}%</div><div style={{fontSize:10,color:"#666"}}>Dew {fmtTemp(h.dewPoint,u.temp)}</div></div>
-                    <div><div style={{fontSize:9,color:"#555",textTransform:"uppercase",letterSpacing:1}}>Pressure</div><div style={{color:pc(h.pressure),fontWeight:"bold"}}>{fmtPres(h.pressure,u.pressure)}</div><div style={{fontSize:10,color:"#666"}}>{h.pressure>=1020?"High":"h.pressure>=1010"?"Normal":"Low"}</div></div>
-                    <div><div style={{fontSize:9,color:"#555",textTransform:"uppercase",letterSpacing:1}}>UV Index</div><div style={{color:uvCol(h.uv),fontWeight:"bold"}}>{h.uv} — {uvLbl(h.uv)}</div><div style={{fontSize:10,color:"#666"}}>{h.uv>=6?"Protection essential":h.uv>=3?"Some protection":h.uv>0?"Low risk":"No UV"}</div></div>
+                    <div><div style={{fontSize:9,color:"#555",textTransform:"uppercase",letterSpacing:1}}>Pressure</div><div style={{color:pc(h.pressure),fontWeight:"bold"}}>{fmtPres(h.pressure,u.pressure)}</div><div style={{fontSize:10,color:"#666"}}>{h.pressure>=1020?"High":h.pressure>=1010?"Normal":"Low"}</div></div>
+                    <div><div style={{fontSize:9,color:"#555",textTransform:"uppercase",letterSpacing:1}}>UV Index</div><div style={{color:uvCol(h.uv),fontWeight:"bold"}}>{h.uv} — {uvLbl(h.uv)}</div><div style={{fontSize:10,color:"#666"}}>{uvProtect(h.uv)}</div></div>
                     <div><div style={{fontSize:9,color:"#555",textTransform:"uppercase",letterSpacing:1}}>Cloud Cover</div><div style={{color:"#aaa",fontWeight:"bold"}}>{h.cloud}%</div><div style={{fontSize:10,color:"#666"}}>{h.cloud<20?"Clear":h.cloud<40?"Mostly clear":h.cloud<70?"Partly cloudy":"Overcast"}</div></div>
                     <div><div style={{fontSize:9,color:"#555",textTransform:"uppercase",letterSpacing:1}}>Visibility</div><div style={{color:"#aabbcc",fontWeight:"bold",fontSize:11}}>{h.visibility}</div></div>
                   </div>
@@ -587,7 +730,7 @@ function WeatherGraphs(props){
     }
   }else{
     forecastData.forEach(function(d){
-      var val=iAg==="temp"?d.temp:iAg==="rain"?d.rain:iAg==="wind"?d.windMph:iAg==="gust"?d.gustMph:iAg==="hum"?d.humidity:iAg==="pressure"?d.pressure:iAg==="cloud"?Math.round(d.humidity*0.7):iAg==="uv"?(d.temp>=30?8:d.temp>=25?6:d.temp>=20?4:2):0;
+      var val=iAg==="temp"?d.temp:iAg==="rain"?d.rain:iAg==="wind"?d.windMph:iAg==="gust"?d.gustMph:iAg==="hum"?d.humidity:iAg==="pressure"?d.pressure:iAg==="cloud"?Math.round(d.humidity*0.7):iAg==="uv"?(d.uvMax!=null?d.uvMax:d.temp>=40?12:d.temp>=35?10:d.temp>=30?9:d.temp>=25?7:d.temp>=20?4:2):0;
       points.push({label:d.date,val:val,condition:d.condition});
     });
   }
@@ -599,7 +742,7 @@ function WeatherGraphs(props){
   for(var pi=1;pi<points.length-1;pi++){var pv=points[pi-1].val,cv=points[pi].val,nv=points[pi+1].val;if(cv>pv&&cv>nv&&cv>minV+range*0.6)peaks.push(pi);if(cv<pv&&cv<nv&&cv<minV+range*0.4)troughs.push(pi);}
   function colV(v){if(iAg==="temp")return tc(v);if(iAg==="rain"||iAg==="cloud")return rc(v);if(iAg==="wind"||iAg==="gust")return wc(v);if(iAg==="hum")return hc(v);if(iAg==="pressure")return pc(v);if(iAg==="uv")return uvCol(v);return "#88aacc";}
   function fmtV(v){if(iAg==="temp")return fmtTemp(v,u.temp);if(iAg==="rain"||iAg==="hum"||iAg==="cloud")return v+"%";if(iAg==="wind"||iAg==="gust")return fmtSpd(v,u.speed);if(iAg==="pressure")return fmtPres(v,u.pressure);if(iAg==="uv")return v+" UV";return ""+v;}
-  var gTabs=[{id:"temp",label:"Temp",icon:"\u{1F321}"},{id:"rain",label:"Rain%",icon:"\u{1F327}"},{id:"wind",label:"Wind",icon:"\u{1F4A8}"},{id:"gust",label:"Gusts",icon:"\u{1F32C}\uFE0F"},{id:"hum",label:"Humidity",icon:"\u{1F4A7}"},{id:"pressure",label:"Pressure",icon:"\u{1F4CA}"},{id:"cloud",label:"Cloud",icon:"\u2601\uFE0F"},{id:"uv",label:"UV",icon:"\u2600\uFE0F"}];
+  var gTabs=[{id:"temp",label:"Temp",icon:"🌡"},{id:"rain",label:"Rain%",icon:"🌧"},{id:"wind",label:"Wind",icon:"💨"},{id:"gust",label:"Gusts",icon:"🌬"},{id:"hum",label:"Humidity",icon:"💧"},{id:"pressure",label:"Pressure",icon:"📊"},{id:"cloud",label:"Cloud",icon:"☁️"},{id:"uv",label:"UV",icon:"☀️"}];
   var svgW=900,svgH=220,padL=44,padR=16,padT=32,padB=28;
   var chartW=svgW-padL-padR,chartH=svgH-padT-padB;
   var step=chartW/Math.max(points.length-1,1);
@@ -627,7 +770,7 @@ function WeatherGraphs(props){
           <path d={areaD} fill="url(#ag)"/>
           <path d={pathD} fill="none" stroke={colV(maxV)} strokeWidth="2" strokeLinejoin="round"/>
           {peaks.map(function(pi){return <g key={"pk"+pi}><circle cx={xOf(pi)} cy={yOf(points[pi].val)} r="4" fill={colV(points[pi].val)} opacity="0.9"/><text x={xOf(pi)} y={yOf(points[pi].val)-8} textAnchor="middle" fontSize="9" fill={colV(points[pi].val)} fontWeight="bold">{fmtV(points[pi].val)}</text><text x={xOf(pi)} y={yOf(points[pi].val)-18} textAnchor="middle" fontSize="8" fill="#888">Peak</text></g>;})}
-          {troughs.map(function(ti){return <g key={"tr"+ti}><circle cx={xOf(ti)} cy={yOf(points[ti].val)} r="3" fill="#4a9fd4" opacity="0.8"/><text x={xOf(ti)} y={yOf(points[ti].val)+16} textAnchor="middle" fontSize="9" fill="#4a9fd4">{fmtV(points[ti].val)}</text></g>;})}
+          {troughs.map(function(ti){return <g key={"tr"+ti}><circle cx={xOf(ti)} cy={yOf(points[ti].val)} r="3" fill="#4a9fd4" opacity="0.9"/><text x={xOf(ti)} y={yOf(points[ti].val)+16} textAnchor="middle" fontSize="9" fill="#4a9fd4">{fmtV(points[ti].val)}</text></g>;})}
           {iHov!==null&&<g><line x1={xOf(iHov)} y1={padT} x2={xOf(iHov)} y2={padT+chartH} stroke="rgba(255,255,255,0.2)" strokeWidth="1" strokeDasharray="4,3"/><circle cx={xOf(iHov)} cy={yOf(points[iHov].val)} r="5" fill={colV(points[iHov].val)} stroke="#fff" strokeWidth="1.5"/></g>}
           {points.map(function(p,i){return <rect key={i} x={xOf(i)-step/2} y={padT} width={step} height={chartH} fill="transparent" onMouseEnter={function(){setHov(i);}} onClick={function(){setHov(iHov===i?null:i);}} style={{cursor:"crosshair"}}/>;} )}
           {points.map(function(p,i){if(i%xEvery!==0)return null;var lb=iUh?p.label.split(" ")[0]:p.label.split(" ").slice(0,2).join(" ");return <text key={i} x={xOf(i)} y={svgH-4} textAnchor="middle" fontSize="8" fill="#555" transform={"rotate(-30,"+xOf(i)+","+(svgH-4)+")"}>{lb}</text>;})}
@@ -648,16 +791,16 @@ function WeatherGraphs(props){
           var maxL=Math.max.apply(null,lows);
           var avg=Math.round(temps.reduce(function(a,b){return a+b;},0)/temps.length);
           var rainy=forecastData.filter(function(d){return d.rain>=50;}).length;
-          var sunny=forecastData.filter(function(d){return d.condition.includes("\u2600")||d.condition.includes("\u{1F321}")||d.condition.includes("\u{1F324}");}).length;
+          var sunny2=forecastData.filter(function(d){return d.condition.includes("☀")||d.condition.includes("🌡")||d.condition.includes("🌤");}).length;
           var totalR=forecastData.reduce(function(a,d){return a+d.rainMm;},0);
           var stats=[
-            {icon:"\u{1F525}",label:"Peak High",val:fmtTemp(maxT2,u.temp),col:tc(maxT2)},
-            {icon:"\u2744\uFE0F",label:"Lowest High",val:fmtTemp(minT2,u.temp),col:tc(minT2)},
-            {icon:"\u{1F4CA}",label:"Avg High",val:fmtTemp(avg,u.temp),col:tc(avg)},
-            {icon:"\u{1F319}",label:"Warmest Low",val:fmtTemp(maxL,u.temp),col:tc(maxL)},
-            {icon:"\u{1F327}",label:"Rainy Days",val:rainy+" days",col:"#66aaff"},
-            {icon:"\u2600\uFE0F",label:"Sunny Days",val:sunny+" days",col:"#ffcc00"},
-            {icon:"\u{1F4A6}",label:"Total Rain",val:fmtRain(totalR,u.rain),col:"#88ccff"},
+            {icon:"🔥",label:"Peak High",val:fmtTemp(maxT2,u.temp),col:tc(maxT2)},
+            {icon:"❄️",label:"Lowest High",val:fmtTemp(minT2,u.temp),col:tc(minT2)},
+            {icon:"📊",label:"Avg High",val:fmtTemp(avg,u.temp),col:tc(avg)},
+            {icon:"🌙",label:"Warmest Low",val:fmtTemp(maxL,u.temp),col:tc(maxL)},
+            {icon:"🌧️",label:"Rainy Days",val:rainy+" days",col:"#66aaff"},
+            {icon:"☀️",label:"Sunny Days",val:sunny2+" days",col:"#ffcc00"},
+            {icon:"💦",label:"Total Rain",val:fmtRain(totalR,u.rain),col:"#88ccff"},
           ];
           return stats.map(function(s,i){return <div key={i} style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:10,padding:"10px 12px"}}><div style={{fontSize:16,marginBottom:4}}>{s.icon}</div><div style={{fontSize:9,color:"#666",textTransform:"uppercase",letterSpacing:1,marginBottom:3}}>{s.label}</div><div style={{fontSize:18,fontWeight:"bold",color:s.col}}>{s.val}</div></div>;});
         })()}
@@ -666,9 +809,9 @@ function WeatherGraphs(props){
   );
 }
 
-// ── Map and Radar ─────────────────────────────────────────────────────────────
+// ── FIX 1: Map and Radar — zooms to searched location ────────────────────────
 function MapRadar(props){
-  var locationName=props.locationName,forecastData=props.forecastData;
+  var locationName=props.locationName,forecastData=props.forecastData,lat=props.lat,lon=props.lon;
   var layer=useState("clouds_new");var iLayer=layer[0];var setLayer=layer[1];
   var layers=[
     {id:"clouds_new",label:"Cloud Cover"},
@@ -678,25 +821,30 @@ function MapRadar(props){
     {id:"temp_new",label:"Temperature"},
   ];
   var apiKey="ae1c71166a78c7c450b495408e5e0d53";
-  var osmBase="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
-  var owmBase="https://tile.openweathermap.org/map/"+iLayer+"/{z}/{x}/{y}.png?appid="+apiKey;
-  // Leaflet map via blob URL approach - build HTML as a blob
   var mapRef=useRef(null);
   var iframeRef=useRef(null);
+  // Use actual lat/lon passed from fetch, default to London if not available
+  var mapLat=lat||51.5074;
+  var mapLon=lon||-0.1278;
   useEffect(function(){
     if(!iframeRef.current)return;
+    var osmBase="https://tile.openstreetmap.org/{z}/{x}/{y}.png";
+    var owmBase="https://tile.openweathermap.org/map/"+iLayer+"/{z}/{x}/{y}.png?appid="+apiKey;
+    var safeLocName=locationName.replace(/['"<>&]/g,"");
+    var zoomLevel=10; // zoom in to city level
     var doc=[
       "<!DOCTYPE html><html><head>",
       "<link rel='stylesheet' href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'/>",
-      "<style>body{margin:0}#m{height:100vh;background:#0a0a1a}</style>",
+      "<style>body{margin:0}#m{height:100vh;background:#0a0a1a}.leaflet-container{background:#0a0f1e}</style>",
       "</head><body><div id='m'></div>",
       "<script src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'></s"+"cript>",
       "<script>",
       "window.onload=function(){",
-      "var map=L.map('m').setView([51.5074,-0.1278],5);",
-      "L.tileLayer('"+osmBase+"',{opacity:0.7}).addTo(map);",
-      "L.tileLayer('"+owmBase+"',{opacity:0.6}).addTo(map);",
-      "L.marker([51.5074,-0.1278]).addTo(map).bindPopup('"+locationName.replace(/['"<>]/g,"")+"').openPopup();",
+      "var map=L.map('m',{zoomControl:true}).setView(["+mapLat+","+mapLon+"],"+zoomLevel+");",
+      "L.tileLayer('"+osmBase+"',{attribution:'&copy; OpenStreetMap',opacity:0.7,maxZoom:18}).addTo(map);",
+      "L.tileLayer('"+owmBase+"',{attribution:'&copy; OpenWeatherMap',opacity:0.6,maxZoom:18}).addTo(map);",
+      "var marker=L.marker(["+mapLat+","+mapLon+"]).addTo(map);",
+      "marker.bindPopup('<b>"+safeLocName+"</b>').openPopup();",
       "};",
       "</s"+"cript></body></html>"
     ].join("");
@@ -704,14 +852,15 @@ function MapRadar(props){
     var url=URL.createObjectURL(blob);
     iframeRef.current.src=url;
     return function(){URL.revokeObjectURL(url);};
-  },[iLayer,locationName]);
+  },[iLayer,locationName,mapLat,mapLon]);
   return (
     <div>
       <div style={{fontSize:11,letterSpacing:3,color:"#ff7700",textTransform:"uppercase",marginBottom:16}}>Map and Radar</div>
       <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:12}}>
         {layers.map(function(l){var on=iLayer===l.id;return <button key={l.id} onClick={function(){setLayer(l.id);}} style={{padding:"5px 11px",borderRadius:20,border:"1px solid",borderColor:on?"#ff7700":"rgba(255,255,255,0.12)",background:on?"rgba(255,119,0,0.18)":"rgba(255,255,255,0.03)",color:on?"#ffaa44":"#888",fontSize:11,cursor:"pointer"}}>{l.label}</button>;})}
       </div>
-      <div ref={mapRef} style={{borderRadius:14,overflow:"hidden",border:"1px solid rgba(255,255,255,0.1)",height:400,marginBottom:16}}>
+      <div style={{fontSize:11,color:"#666",marginBottom:8}}>📍 Centred on: <span style={{color:"#aaa"}}>{locationName}</span></div>
+      <div ref={mapRef} style={{borderRadius:14,overflow:"hidden",border:"1px solid rgba(255,255,255,0.1)",height:420,marginBottom:16}}>
         <iframe ref={iframeRef} style={{width:"100%",height:"100%",border:"none"}} title="Weather Map"/>
       </div>
       {forecastData.length>0&&<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(130px,1fr))",gap:8}}>
@@ -747,14 +896,14 @@ function WeatherExtremes(props){
   }
 
   var allTime=[
-    {title:"Highest Temperature",value:"56.7C / 134F",location:"Death Valley, USA",date:"10 Jul 1913",context:"The highest reliably recorded surface air temperature on Earth.",icon:"\u{1F525}",color:"#ff1500"},
-    {title:"Lowest Temperature",value:"-89.2C / -128.6F",location:"Vostok Station, Antarctica",date:"21 Jul 1983",context:"Recorded at the Soviet Antarctic research station during midwinter.",icon:"\u{1F9CA}",color:"#88ccff"},
-    {title:"Most Rain in 24 Hours",value:"1,825mm / 71.8 inches",location:"Cilaos, Reunion Island",date:"7-8 Jan 1966",context:"During Tropical Cyclone Denise — the highest 24-hour rainfall total ever recorded.",icon:"\u{1F30A}",color:"#4488ff"},
-    {title:"Strongest Wind Gust",value:"408 km/h / 253 mph",location:"Barrow Island, Australia",date:"10 Apr 1996",context:"Recorded during Tropical Cyclone Olivia — highest surface wind gust ever measured.",icon:"\u{1F300}",color:"#00ccff"},
-    {title:"Hottest Month (Global)",value:"+1.51C above pre-industrial",location:"Global Average",date:"July 2023",context:"July 2023 was the hottest month in recorded global history.",icon:"\u{1F30D}",color:"#ff6600"},
-    {title:"Most Snow in 24 Hours",value:"192cm / 75.8 inches",location:"Silver Lake, Colorado, USA",date:"14-15 Apr 1921",context:"The greatest single-day snowfall ever recorded at any weather station.",icon:"\u2744\uFE0F",color:"#aaddff"},
-    {title:"Longest Drought",value:"173 months without rain",location:"Arica, Chile",date:"Oct 1903 - Jan 1918",context:"The Atacama Desert city went over 14 consecutive years without measurable rainfall.",icon:"\u{1F3DC}\uFE0F",color:"#cc8833"},
-    {title:"Largest Hailstone",value:"20cm diameter, 878g",location:"Vivian, South Dakota, USA",date:"23 Jul 2010",context:"The largest hailstone ever officially recorded anywhere in the world.",icon:"\u26CF\uFE0F",color:"#aabbcc"},
+    {title:"Highest Temperature",value:"56.7°C / 134°F",location:"Death Valley, USA",date:"10 Jul 1913",context:"The highest reliably recorded surface air temperature on Earth.",icon:"🔥",color:"#ff1500"},
+    {title:"Lowest Temperature",value:"-89.2°C / -128.6°F",location:"Vostok Station, Antarctica",date:"21 Jul 1983",context:"Recorded at the Soviet Antarctic research station during midwinter.",icon:"🧊",color:"#88ccff"},
+    {title:"Most Rain in 24 Hours",value:"1,825mm / 71.8 in",location:"Cilaos, Reunion Island",date:"7-8 Jan 1966",context:"During Tropical Cyclone Denise — the highest 24-hour rainfall total ever recorded.",icon:"🌊",color:"#4488ff"},
+    {title:"Strongest Wind Gust",value:"408 km/h / 253 mph",location:"Barrow Island, Australia",date:"10 Apr 1996",context:"Recorded during Tropical Cyclone Olivia — highest surface wind gust ever measured.",icon:"🌀",color:"#00ccff"},
+    {title:"Hottest Month (Global)",value:"+1.51°C above pre-industrial",location:"Global Average",date:"July 2023",context:"July 2023 was the hottest month in recorded global history.",icon:"🌍",color:"#ff6600"},
+    {title:"Most Snow in 24 Hours",value:"192cm / 75.8 in",location:"Silver Lake, Colorado, USA",date:"14-15 Apr 1921",context:"The greatest single-day snowfall ever recorded at any weather station.",icon:"❄️",color:"#aaddff"},
+    {title:"Longest Drought",value:"173 months without rain",location:"Arica, Chile",date:"Oct 1903 - Jan 1918",context:"The Atacama Desert city went over 14 consecutive years without measurable rainfall.",icon:"🏜️",color:"#cc8833"},
+    {title:"Largest Hailstone",value:"20cm diameter, 878g",location:"Vivian, South Dakota, USA",date:"23 Jul 2010",context:"The largest hailstone ever officially recorded anywhere in the world.",icon:"⛏️",color:"#aabbcc"},
   ];
 
   var localEx=[];
@@ -764,10 +913,10 @@ function WeatherExtremes(props){
     var mR=forecastData.reduce(function(a,d){return d.rainMm>a.rainMm?d:a;});
     var mW=forecastData.reduce(function(a,d){return d.windMph>a.windMph?d:a;});
     localEx=[
-      {title:"Forecast Peak Temp",value:fmtTemp(mT.temp,u.temp),location:locationName,date:mT.date,context:"Highest temperature in the 13-day forecast.",icon:"\u{1F321}\uFE0F",color:tc(mT.temp)},
-      {title:"Coldest Night",value:fmtTemp(mL.low,u.temp),location:locationName,date:mL.date,context:"Coldest overnight temperature in the forecast period.",icon:"\u{1F319}",color:"#88ccff"},
-      {title:"Heaviest Rain Day",value:fmtRain(mR.rainMm,u.rain)+" ("+mR.rain+"%)",location:locationName,date:mR.date,context:"Day with most expected rainfall in the forecast.",icon:"\u{1F327}",color:"#4488ff"},
-      {title:"Strongest Wind",value:fmtSpd(mW.windMph,u.speed),location:locationName,date:mW.date,context:"Peak wind forecast. Gusts to "+fmtSpd(mW.gustMph,u.speed)+".",icon:"\u{1F4A8}",color:wc(mW.windMph)},
+      {title:"Forecast Peak Temp",value:fmtTemp(mT.temp,u.temp),location:locationName,date:mT.date,context:"Highest temperature in the 13-day forecast.",icon:"🌡️",color:tc(mT.temp)},
+      {title:"Coldest Night",value:fmtTemp(mL.low,u.temp),location:locationName,date:mL.date,context:"Coldest overnight temperature in the forecast period.",icon:"🌙",color:"#88ccff"},
+      {title:"Heaviest Rain Day",value:fmtRain(mR.rainMm,u.rain)+" ("+mR.rain+"%)",location:locationName,date:mR.date,context:"Day with most expected rainfall in the forecast.",icon:"🌧️",color:"#4488ff"},
+      {title:"Strongest Wind",value:fmtSpd(mW.windMph,u.speed),location:locationName,date:mW.date,context:"Peak wind forecast. Gusts to "+fmtSpd(mW.gustMph,u.speed)+".",icon:"💨",color:wc(mW.windMph)},
     ];
   }
 
@@ -798,6 +947,36 @@ function WeatherExtremes(props){
   );
 }
 
+// ── FIX 2: Location Search with multiple results dropdown ─────────────────────
+function LocationSearchDropdown(props){
+  var results=props.results,onSelect=props.onSelect,onClose=props.onClose;
+  if(!results||results.length===0)return null;
+  return (
+    <div style={{position:"absolute",top:"calc(100% + 4px)",left:0,right:0,background:"#0e1624",border:"1px solid rgba(255,119,0,0.35)",borderRadius:12,zIndex:300,boxShadow:"0 8px 32px rgba(0,0,0,0.8)",overflow:"hidden"}}>
+      <div style={{padding:"8px 12px",fontSize:10,color:"#666",letterSpacing:2,textTransform:"uppercase",borderBottom:"1px solid rgba(255,255,255,0.06)"}}>
+        {results.length} location{results.length>1?"s":""} found — select one
+      </div>
+      {results.map(function(place,i){
+        var nameStr=place.name+(place.admin1?", "+place.admin1:"")+(place.country?", "+place.country:"");
+        var subStr=[place.admin2,place.admin3].filter(Boolean).join(", ");
+        return (
+          <button key={i} onClick={function(){onSelect(place);onClose();}} style={{display:"flex",alignItems:"center",gap:10,width:"100%",padding:"11px 14px",background:"transparent",border:"none",borderBottom:"1px solid rgba(255,255,255,0.04)",color:"#bbb",fontSize:13,cursor:"pointer",textAlign:"left"}}>
+            <span style={{fontSize:20,flexShrink:0}}>📍</span>
+            <div>
+              <div style={{fontSize:13,color:"#e8dcc8",fontWeight:"bold"}}>{nameStr}</div>
+              {subStr&&<div style={{fontSize:10,color:"#555",marginTop:1}}>{subStr}</div>}
+              <div style={{fontSize:10,color:"#444",marginTop:1}}>
+                {place.latitude!=null?place.latitude.toFixed(3):"?"}°N, {place.longitude!=null?place.longitude.toFixed(3):"?"}°E
+                {place.elevation!=null&&" · "+Math.round(place.elevation)+"m alt"}
+              </div>
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── Main App ──────────────────────────────────────────────────────────────────
 function App(){
   var fd=useState([]);var iFd=fd[0];var setFd=fd[1];
@@ -810,28 +989,82 @@ function App(){
   var ap=useState("overview");var iAp=ap[0];var setAp=ap[1];
   var showS=useState(false);var iShowS=showS[0];var setShowS=showS[1];
   var units=useState({temp:"C",speed:"mph",rain:"mm",pressure:"mbar"});var iUnits=units[0];var setUnits=units[1];
+  // FIX 2: multiple location results state
+  var searchResults=useState([]);var iSearchResults=searchResults[0];var setSearchResults=searchResults[1];
+  var showResults=useState(false);var iShowResults=showResults[0];var setShowResults=showResults[1];
+  var searchRef=useRef(null);
+  // Store lat/lon for map fix
+  var latState=useState(51.5074);var iLat=latState[0];var setLat=latState[1];
+  var lonState=useState(-0.1278);var iLon=lonState[0];var setLon=lonState[1];
 
-  useEffect(function(){fetch2("London");},[]);
+  useEffect(function(){fetchByName("London");},[]);
 
-  async function fetch2(name){
+  // Close dropdown when clicking outside
+  useEffect(function(){
+    function handleClick(e){if(searchRef.current&&!searchRef.current.contains(e.target))setShowResults(false);}
+    document.addEventListener("mousedown",handleClick);
+    return function(){document.removeEventListener("mousedown",handleClick);};
+  },[]);
+
+  // FIX 2: Search returns multiple results for user to choose
+  async function searchLocation(name){
+    setSearching(true);setErr("");setSearchResults([]);setShowResults(false);
+    try{
+      var gR=await fetch("https://geocoding-api.open-meteo.com/v1/search?name="+encodeURIComponent(name)+"&count=8&language=en&format=json");
+      var gJ=await gR.json();
+      if(!gJ.results||!gJ.results.length){setErr("Location not found.");setSearching(false);return;}
+      if(gJ.results.length===1){
+        // Only one result — go straight to forecast
+        await fetchWeather(gJ.results[0]);
+      }else{
+        // Multiple results — show dropdown
+        setSearchResults(gJ.results);
+        setShowResults(true);
+        setSearching(false);
+      }
+    }catch(e){setErr("Could not search. Check your connection.");setSearching(false);}
+  }
+
+  async function fetchByName(name){
     setSearching(true);setErr("");
     try{
       var gR=await fetch("https://geocoding-api.open-meteo.com/v1/search?name="+encodeURIComponent(name)+"&count=1&language=en&format=json");
       var gJ=await gR.json();
       if(!gJ.results||!gJ.results.length){setErr("Location not found.");setSearching(false);return;}
-      var place=gJ.results[0];
-      var wR=await fetch("https://api.open-meteo.com/v1/forecast?latitude="+place.latitude+"&longitude="+place.longitude+"&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,precipitation_hours,windspeed_10m_max,windgusts_10m_max,relative_humidity_2m_mean,surface_pressure_mean,weathercode&hourly=temperature_2m,weathercode,precipitation_probability,precipitation,windspeed_10m,windgusts_10m,relativehumidity_2m,surface_pressure,cloudcover,uv_index,dewpoint_2m,visibility&timezone=auto&forecast_days=13");
+      await fetchWeather(gJ.results[0]);
+    }catch(e){setErr("Could not load forecast.");setSearching(false);}
+  }
+
+  async function fetchWeather(place){
+    setSearching(true);setErr("");
+    try{
+      var wR=await fetch("https://api.open-meteo.com/v1/forecast?latitude="+place.latitude+"&longitude="+place.longitude+
+        "&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,precipitation_sum,precipitation_hours,windspeed_10m_max,windgusts_10m_max,relative_humidity_2m_mean,surface_pressure_mean,weathercode,uv_index_max"+
+        "&hourly=temperature_2m,weathercode,precipitation_probability,precipitation,windspeed_10m,windgusts_10m,relativehumidity_2m,surface_pressure,cloudcover,uv_index,dewpoint_2m,visibility"+
+        "&timezone=auto&forecast_days=13");
       var wJ=await wR.json();
       var days=wJ.daily,hrs=wJ.hourly;
       var data=days.time.map(function(t,i){
         var temp=Math.round(days.temperature_2m_max[i]);
+        var code=days.weathercode[i]||0;
+        // Use daily dominant cloud cover estimated from hourly if available
+        var cloudEst=55; // default
+        var precipSum=days.precipitation_sum[i]||0;
+        // estimate cloud from precipitation probability
+        if(days.precipitation_probability_max[i]>=70)cloudEst=85;
+        else if(days.precipitation_probability_max[i]>=40)cloudEst=60;
+        else if(days.precipitation_probability_max[i]<=10)cloudEst=15;
+        var cond=condFromCode(code,temp,cloudEst,precipSum);
         var mph=Math.round((days.windspeed_10m_max[i]||0)*0.621371);
-        var cond=condFromCode(days.weathercode[i]||0,temp);
         var ds=new Date(t+"T12:00:00").toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"});
-        return{date:ds,temp:temp,low:Math.round(days.temperature_2m_min[i]),type:i<3?"confirmed":i<7?"near":"estimated",condition:cond,note:"Live forecast via Open-Meteo",wind:mph<5?"very light":mph<10?"light":mph<20?"moderate":"fresh",windMph:mph,gustMph:Math.round((days.windgusts_10m_max[i]||mph*1.3)*0.621371),rain:days.precipitation_probability_max[i]||0,humidity:Math.round(days.relative_humidity_2m_mean[i]||55),pressure:Math.round(days.surface_pressure_mean[i]||1013),rainMm:parseFloat((days.precipitation_sum[i]||0).toFixed(1)),rainHours:Math.round(days.precipitation_hours[i]||0)};
+        // FIX 4: use actual UV max from API
+        var uvMax=days.uv_index_max&&days.uv_index_max[i]!=null?Math.round(days.uv_index_max[i]):null;
+        return{date:ds,temp:temp,low:Math.round(days.temperature_2m_min[i]),type:i<3?"confirmed":i<7?"near":"estimated",condition:cond,note:"Live forecast via Open-Meteo",wind:mph<5?"very light":mph<10?"light":mph<20?"moderate":"fresh",windMph:mph,gustMph:Math.round((days.windgusts_10m_max[i]||mph*1.3)*0.621371),rain:days.precipitation_probability_max[i]||0,humidity:Math.round(days.relative_humidity_2m_mean[i]||55),pressure:Math.round(days.surface_pressure_mean[i]||1013),rainMm:parseFloat((days.precipitation_sum[i]||0).toFixed(1)),rainHours:Math.round(days.precipitation_hours[i]||0),uvMax:uvMax};
       });
       setHr({times:hrs.time,temps:hrs.temperature_2m,codes:hrs.weathercode,windMph:hrs.windspeed_10m.map(function(v){return Math.round((v||0)*0.621371);}),gusts:hrs.windgusts_10m.map(function(v){return Math.round((v||0)*0.621371);}),rain:hrs.precipitation_probability,rainMm:hrs.precipitation,humidity:hrs.relativehumidity_2m,pressure:hrs.surface_pressure,cloud:hrs.cloudcover,uv:hrs.uv_index,dewpoint:hrs.dewpoint_2m,vis:hrs.visibility});
       setFd(data);
+      setLat(place.latitude);
+      setLon(place.longitude);
       setLn(place.name+(place.admin1?", "+place.admin1:"")+(place.country_code?", "+place.country_code:""));
       var first=new Date(days.time[0]+"T12:00:00"),last=new Date(days.time[days.time.length-1]+"T12:00:00");
       setDr(first.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+" - "+last.toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"}));
@@ -839,7 +1072,7 @@ function App(){
     setSearching(false);
   }
 
-  function doSearch(){if(iSt.trim())fetch2(iSt.trim());}
+  function doSearch(){if(iSt.trim())searchLocation(iSt.trim());}
   function onKey(e){if(e.key==="Enter")doSearch();}
 
   var u=iUnits;
@@ -852,7 +1085,13 @@ function App(){
       <div style={wrapSty}>
         <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:20,flexWrap:"wrap"}}>
           <NavDropdown activePage={iAp} setActivePage={setAp}/>
-          <input value={iSt} onChange={function(e){setSt(e.target.value);}} onKeyDown={onKey} placeholder="Search any location worldwide..." style={{flex:1,minWidth:120,padding:"10px 12px",borderRadius:12,border:"1px solid rgba(255,255,255,0.15)",background:"rgba(255,255,255,0.05)",color:"#fff",fontSize:13,outline:"none"}}/>
+          {/* FIX 2: search box with dropdown container */}
+          <div ref={searchRef} style={{flex:1,minWidth:120,position:"relative"}}>
+            <input value={iSt} onChange={function(e){setSt(e.target.value);}} onKeyDown={onKey}
+              placeholder="Search any location worldwide..."
+              style={{width:"100%",padding:"10px 12px",borderRadius:12,border:"1px solid rgba(255,255,255,0.15)",background:"rgba(255,255,255,0.05)",color:"#fff",fontSize:13,outline:"none"}}/>
+            {iShowResults&&<LocationSearchDropdown results={iSearchResults} onSelect={fetchWeather} onClose={function(){setShowResults(false);}}/>}
+          </div>
           <button onClick={doSearch} disabled={iSearching} style={{padding:"10px 14px",borderRadius:12,border:"none",background:iSearching?"#555":"#ff7700",color:"#fff",fontSize:13,fontWeight:"bold",cursor:iSearching?"wait":"pointer",whiteSpace:"nowrap",flexShrink:0}}>{iSearching?"Loading...":"Search"}</button>
           <button onClick={function(){setShowS(true);}} style={{padding:"10px 12px",borderRadius:12,border:"1px solid rgba(255,255,255,0.15)",background:"rgba(255,255,255,0.05)",color:"#aaa",fontSize:13,cursor:"pointer",flexShrink:0}}>Settings</button>
         </div>
@@ -868,11 +1107,11 @@ function App(){
                 {[{col:"#ff7700",label:"Confirmed",solid:true},{col:"#4a9fd4",label:"Near-term",solid:false},{col:"#555",label:"Estimated",solid:false}].map(function(l,i){return <span key={i} style={{display:"flex",alignItems:"center",gap:5}}><span style={{width:9,height:9,borderRadius:l.solid?2:"50%",background:l.col,display:"inline-block"}}/>{l.label}</span>;})}
               </div>
             </div>
-            {iAp==="overview"&&<WeatherOverview forecastData={iFd} locationName={iLn} u={u}/>}
+            {iAp==="overview"&&<WeatherOverview forecastData={iFd} locationName={iLn} u={u} hourlyRaw={iHr} lat={iLat} lon={iLon}/>}
             {iAp==="ten"&&<TenDayForecast forecastData={iFd} u={u}/>}
             {iAp==="hourly"&&<HourlyForecast forecastData={iFd} hourlyRaw={iHr} u={u}/>}
             {iAp==="graphs"&&<WeatherGraphs forecastData={iFd} hourlyRaw={iHr} u={u}/>}
-            {iAp==="radar"&&<MapRadar locationName={iLn} forecastData={iFd}/>}
+            {iAp==="radar"&&<MapRadar locationName={iLn} forecastData={iFd} lat={iLat} lon={iLon}/>}
             {iAp==="extremes"&&<WeatherExtremes forecastData={iFd} locationName={iLn} u={u}/>}
           </div>
         )}
