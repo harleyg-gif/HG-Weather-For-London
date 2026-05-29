@@ -6,10 +6,27 @@
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
   <meta name="apple-mobile-web-app-title" content="Weather Forecast"/>
-  <title>Weather Forecast</title>
+  <title>The Weather Centre</title>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <!-- Firebase v9 compat (works without bundler) -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script>
+    firebase.initializeApp({
+      apiKey: "AIzaSyBw7uo-9Fhd2WmRyjm3Rh_qEAPnDOjjdGI",
+      authDomain: "the-global-weather-centr-34242.firebaseapp.com",
+      projectId: "the-global-weather-centr-34242",
+      storageBucket: "the-global-weather-centr-34242.firebasestorage.app",
+      messagingSenderId: "991077857189",
+      appId: "1:991077857189:web:7648e7c59804c2aec31a4c"
+    });
+    var fbAuth = firebase.auth();
+    var fbDb   = firebase.firestore();
+    var googleProvider = new firebase.auth.GoogleAuthProvider();
+  </script>
   <style>
     *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
     html,body{height:100%;background:#0a0a1a}
@@ -1010,6 +1027,196 @@ function LocationSearchDropdown(props){
   );
 }
 
+// ── Auth Modal ────────────────────────────────────────────────────────────────
+function AuthModal(props){
+  var onClose=props.onClose,onLogin=props.onLogin;
+  var mode=useState("login");var iMode=mode[0];var setMode=mode[1];
+  var email=useState("");var iEmail=email[0];var setEmail=email[1];
+  var pass=useState("");var iPass=pass[0];var setPass=pass[1];
+  var err=useState("");var iErr=err[0];var setErr=err[1];
+  var busy=useState(false);var iBusy=busy[0];var setBusy=busy[1];
+
+  function handleEmailAuth(){
+    setBusy(true);setErr("");
+    var prom=iMode==="login"
+      ?fbAuth.signInWithEmailAndPassword(iEmail,iPass)
+      :fbAuth.createUserWithEmailAndPassword(iEmail,iPass);
+    prom.then(function(uc){onLogin(uc.user);onClose();})
+      .catch(function(e){setErr(e.message);setBusy(false);});
+  }
+  function handleGoogle(){
+    setBusy(true);setErr("");
+    fbAuth.signInWithPopup(googleProvider)
+      .then(function(uc){onLogin(uc.user);onClose();})
+      .catch(function(e){setErr(e.message);setBusy(false);});
+  }
+
+  var inp={width:"100%",padding:"10px 12px",borderRadius:10,border:"1px solid rgba(255,255,255,0.15)",background:"rgba(255,255,255,0.06)",color:"#fff",fontSize:13,outline:"none",marginBottom:10,fontFamily:"Georgia,serif"};
+  var btn={width:"100%",padding:"11px",borderRadius:10,border:"none",fontSize:13,cursor:iBusy?"wait":"pointer",fontFamily:"Georgia,serif",marginBottom:8};
+  return (
+    <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.78)",zIndex:300,display:"flex",alignItems:"center",justifyContent:"center",padding:"0 16px"}}>
+      <div style={{background:"#0e1624",border:"1px solid rgba(255,119,0,0.4)",borderRadius:18,padding:"28px 24px",width:"min(400px,96vw)",boxShadow:"0 12px 48px rgba(0,0,0,0.9)"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:22}}>
+          <span style={{fontSize:15,color:"#ff9944",letterSpacing:2,textTransform:"uppercase"}}>{iMode==="login"?"Sign In":"Create Account"}</span>
+          <button onClick={onClose} style={{background:"none",border:"none",color:"#666",fontSize:20,cursor:"pointer"}}>×</button>
+        </div>
+        <input value={iEmail} onChange={function(e){setEmail(e.target.value);}} placeholder="Email address" type="email" style={inp}/>
+        <input value={iPass} onChange={function(e){setPass(e.target.value);}} placeholder="Password" type="password" style={inp} onKeyDown={function(e){if(e.key==="Enter")handleEmailAuth();}}/>
+        {iErr&&<div style={{color:"#ff7766",fontSize:11,marginBottom:10,lineHeight:1.5}}>{iErr}</div>}
+        <button onClick={handleEmailAuth} disabled={iBusy} style={Object.assign({},btn,{background:iBusy?"#444":"#ff7700",color:"#fff"})}>
+          {iBusy?"Please wait…":iMode==="login"?"Sign In with Email":"Create Account"}
+        </button>
+        <button onClick={handleGoogle} disabled={iBusy} style={Object.assign({},btn,{background:"rgba(255,255,255,0.07)",color:"#e8dcc8",border:"1px solid rgba(255,255,255,0.15)"})}>
+          <span style={{marginRight:8}}>🔵</span>Continue with Google
+        </button>
+        <div style={{textAlign:"center",fontSize:12,color:"#666",marginTop:6}}>
+          {iMode==="login"
+            ?<span>No account? <button onClick={function(){setMode("signup");setErr("");}} style={{background:"none",border:"none",color:"#ff9944",fontSize:12,cursor:"pointer",fontFamily:"Georgia,serif"}}>Sign up free</button></span>
+            :<span>Already have an account? <button onClick={function(){setMode("login");setErr("");}} style={{background:"none",border:"none",color:"#ff9944",fontSize:12,cursor:"pointer",fontFamily:"Georgia,serif"}}>Sign in</button></span>
+          }
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Saved Locations Panel ─────────────────────────────────────────────────────
+function SavedLocationsPanel(props){
+  var user=props.user,onSelect=props.onSelect,currentPlace=props.currentPlace,onClose=props.onClose;
+  var LS_KEY="twc_saved_locations";
+
+  function loadLocal(){try{return JSON.parse(localStorage.getItem(LS_KEY)||"[]");}catch(e){return[];}}
+  function saveLocal(arr){try{localStorage.setItem(LS_KEY,JSON.stringify(arr));}catch(e){}}
+
+  var saved=useState(loadLocal());var iSaved=saved[0];var setSaved=saved[1];
+  var syncing=useState(false);var iSyncing=syncing[0];var setSyncing=syncing[1];
+
+  // Sync from Firestore when logged in
+  useEffect(function(){
+    if(!user)return;
+    setSyncing(true);
+    fbDb.collection("users").doc(user.uid).collection("savedLocations").orderBy("savedAt","desc").get()
+      .then(function(snap){
+        var fsLocs=snap.docs.map(function(d){return d.data();});
+        // Merge with local, deduplicate by name
+        var merged=fsLocs.slice();
+        var names=new Set(fsLocs.map(function(l){return l.name;}));
+        loadLocal().forEach(function(l){if(!names.has(l.name))merged.push(l);});
+        setSaved(merged);
+        saveLocal(merged);
+      })
+      .catch(function(){})
+      .finally(function(){setSyncing(false);});
+  },[user]);
+
+  function addCurrent(){
+    if(!currentPlace||!currentPlace.name)return;
+    var loc={name:currentPlace.name,lat:currentPlace.lat,lon:currentPlace.lon,savedAt:Date.now()};
+    var updated=[loc].concat(iSaved.filter(function(l){return l.name!==loc.name;}));
+    setSaved(updated);
+    saveLocal(updated);
+    if(user){
+      fbDb.collection("users").doc(user.uid).collection("savedLocations").doc(btoa(loc.name).slice(0,20)).set(loc).catch(function(){});
+    }
+  }
+
+  function removeItem(name){
+    var updated=iSaved.filter(function(l){return l.name!==name;});
+    setSaved(updated);
+    saveLocal(updated);
+    if(user){
+      fbDb.collection("users").doc(user.uid).collection("savedLocations").doc(btoa(name).slice(0,20)).delete().catch(function(){});
+    }
+  }
+
+  var isAlreadySaved=currentPlace&&iSaved.some(function(l){return l.name===currentPlace.name;});
+
+  return (
+    <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.72)",zIndex:250,display:"flex",alignItems:"flex-start",justifyContent:"center",paddingTop:60,padding:"60px 16px 0"}}>
+      <div style={{background:"#0e1624",border:"1px solid rgba(255,119,0,0.35)",borderRadius:16,padding:"22px 20px",width:"min(440px,98vw)",boxShadow:"0 8px 40px rgba(0,0,0,0.8)",maxHeight:"80vh",display:"flex",flexDirection:"column"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+          <span style={{fontSize:14,color:"#ff9944",letterSpacing:2,textTransform:"uppercase"}}>📍 Saved Locations</span>
+          <button onClick={onClose} style={{background:"none",border:"none",color:"#888",fontSize:20,cursor:"pointer"}}>×</button>
+        </div>
+        {!user&&<div style={{fontSize:11,color:"#666",marginBottom:12,lineHeight:1.6}}>Saved locally on this device. Sign in to sync across devices.</div>}
+        {user&&<div style={{fontSize:11,color:"#4a9fd4",marginBottom:12}}>{iSyncing?"Syncing…":"✓ Synced to your account"}</div>}
+        {currentPlace&&!isAlreadySaved&&(
+          <button onClick={addCurrent} style={{padding:"10px",borderRadius:10,border:"1px dashed rgba(255,119,0,0.4)",background:"rgba(255,119,0,0.07)",color:"#ffaa44",fontSize:12,cursor:"pointer",marginBottom:12}}>
+            + Save current: {currentPlace.name}
+          </button>
+        )}
+        {currentPlace&&isAlreadySaved&&(
+          <div style={{padding:"8px 12px",borderRadius:10,background:"rgba(74,159,212,0.07)",color:"#4a9fd4",fontSize:12,marginBottom:12}}>✓ Current location is saved</div>
+        )}
+        <div style={{overflowY:"auto",flex:1}}>
+          {iSaved.length===0&&<div style={{color:"#444",fontSize:12,textAlign:"center",padding:"28px 0"}}>No saved locations yet.</div>}
+          {iSaved.map(function(loc,i){
+            return (
+              <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 12px",borderRadius:10,border:"1px solid rgba(255,255,255,0.06)",marginBottom:6,background:"rgba(255,255,255,0.03)"}}>
+                <button onClick={function(){onSelect(loc);onClose();}} style={{flex:1,background:"none",border:"none",color:"#e8dcc8",fontSize:13,cursor:"pointer",textAlign:"left",fontFamily:"Georgia,serif"}}>
+                  📍 {loc.name}
+                </button>
+                <button onClick={function(){removeItem(loc.name);}} style={{background:"none",border:"none",color:"#554",fontSize:16,cursor:"pointer",padding:"2px 6px",borderRadius:6}}>🗑</button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Weather Alerts Panel ──────────────────────────────────────────────────────
+function AlertsPanel(props){
+  var forecastData=props.forecastData,locationName=props.locationName,u=props.u,user=props.user,onClose=props.onClose;
+  var alerts=[];
+  if(forecastData&&forecastData.length>0){
+    forecastData.forEach(function(d,i){
+      if(i>6)return; // only alert on 7-day window
+      if(d.temp>=35)alerts.push({icon:"🔥",level:"danger",title:"Extreme Heat — "+d.date,body:"High of "+fmtTemp(d.temp,u.temp)+" forecast. Risk of heat exhaustion. Stay hydrated and avoid midday sun."});
+      else if(d.temp>=30)alerts.push({icon:"☀️",level:"warn",title:"Hot Day — "+d.date,body:fmtTemp(d.temp,u.temp)+" expected. Apply sunscreen (UV "+uvLbl(d.uvMax!=null?d.uvMax:7)+"). Keep water handy."});
+      if(d.rain>=80&&d.rainMm>=10)alerts.push({icon:"🌧️",level:"danger",title:"Heavy Rain Warning — "+d.date,body:d.rainMm+"mm expected with "+d.rain+"% probability. Possible flooding. Check local advice."});
+      else if(d.rain>=60)alerts.push({icon:"💧",level:"warn",title:"Rain Likely — "+d.date,body:d.rain+"% chance of "+fmtRain(d.rainMm,u.rain)+" of rain. Carry an umbrella."});
+      if(d.windMph>=40)alerts.push({icon:"🌀",level:"danger",title:"Gale Warning — "+d.date,body:"Winds to "+fmtSpd(d.windMph,u.speed)+" gusting "+fmtSpd(d.gustMph,u.speed)+". Dangerous for outdoor activities."});
+      else if(d.windMph>=25)alerts.push({icon:"💨",level:"warn",title:"Strong Wind — "+d.date,body:fmtSpd(d.windMph,u.speed)+" winds. Gusts to "+fmtSpd(d.gustMph,u.speed)+"."});
+      if(d.humidity>=50&&d.temp>=28&&d.condition.includes("⛈"))alerts.push({icon:"⛈️",level:"danger",title:"Storm Risk — "+d.date,body:"Thunderstorm conditions likely with temp "+fmtTemp(d.temp,u.temp)+" and "+d.humidity+"% humidity."});
+      if(d.uvMax!=null&&d.uvMax>=8)alerts.push({icon:"🕶️",level:"warn",title:"Very High UV — "+d.date,body:"UV index "+d.uvMax+" ("+uvLbl(d.uvMax)+"). Sunscreen and eye protection essential."});
+    });
+  }
+
+  var levelColor={danger:"rgba(255,40,40,0.18)",warn:"rgba(255,160,0,0.12)",info:"rgba(74,159,212,0.1)"};
+  var levelBorder={danger:"rgba(255,60,60,0.45)",warn:"rgba(255,160,0,0.35)",info:"rgba(74,159,212,0.3)"};
+
+  return (
+    <div style={{position:"fixed",top:0,left:0,right:0,bottom:0,background:"rgba(0,0,0,0.72)",zIndex:250,display:"flex",alignItems:"flex-start",justifyContent:"center",padding:"60px 16px 0"}}>
+      <div style={{background:"#0e1624",border:"1px solid rgba(255,60,60,0.3)",borderRadius:16,padding:"22px 20px",width:"min(480px,98vw)",boxShadow:"0 8px 40px rgba(0,0,0,0.85)",maxHeight:"80vh",display:"flex",flexDirection:"column"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+          <span style={{fontSize:14,color:"#ff6644",letterSpacing:2,textTransform:"uppercase"}}>⚠️ Weather Alerts</span>
+          <button onClick={onClose} style={{background:"none",border:"none",color:"#888",fontSize:20,cursor:"pointer"}}>×</button>
+        </div>
+        <div style={{fontSize:11,color:"#666",marginBottom:14}}>Next 7 days — {locationName}</div>
+        {!user&&<div style={{fontSize:11,color:"#7a6e5e",marginBottom:12,padding:"8px 12px",background:"rgba(255,119,0,0.06)",borderRadius:8,lineHeight:1.6}}>Sign in to receive email push alerts for severe weather. (Shown here for all users.)</div>}
+        <div style={{overflowY:"auto",flex:1}}>
+          {alerts.length===0&&<div style={{color:"#444",fontSize:12,textAlign:"center",padding:"32px 0"}}>🌤 No significant alerts for the next 7 days.</div>}
+          {alerts.map(function(a,i){
+            return (
+              <div key={i} style={{background:levelColor[a.level]||levelColor.info,border:"1px solid "+(levelBorder[a.level]||levelBorder.info),borderRadius:12,padding:"12px 14px",marginBottom:10}}>
+                <div style={{fontSize:13,fontWeight:"bold",color:"#e8dcc8",marginBottom:4}}>{a.icon} {a.title}</div>
+                <div style={{fontSize:12,color:"#9a8c7a",lineHeight:1.6}}>{a.body}</div>
+              </div>
+            );
+          })}
+          {alerts.length>0&&user&&(
+            <div style={{fontSize:11,color:"#4a9fd4",padding:"10px 12px",background:"rgba(74,159,212,0.08)",borderRadius:8,marginTop:4}}>
+              ✓ Signed in — email alerts can be configured in your account settings.
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main App ──────────────────────────────────────────────────────────────────
 function App(){
   var fd=useState([]);var iFd=fd[0];var setFd=fd[1];
@@ -1030,7 +1237,49 @@ function App(){
   var latState=useState(51.5074);var iLat=latState[0];var setLat=latState[1];
   var lonState=useState(-0.1278);var iLon=lonState[0];var setLon=lonState[1];
 
-  useEffect(function(){fetchByName("London");},[]);
+  // ── NEW: auth + panels state ──
+  var userState=useState(null);var iUser=userState[0];var setUser=userState[1];
+  var showAuth=useState(false);var iShowAuth=showAuth[0];var setShowAuth=showAuth[1];
+  var showSaved=useState(false);var iShowSaved=showSaved[0];var setShowSaved=showSaved[1];
+  var showAlerts=useState(false);var iShowAlerts=showAlerts[0];var setShowAlerts=showAlerts[1];
+  var currentPlace=useRef(null); // {name, lat, lon}
+
+  // Listen for Firebase auth changes
+  useEffect(function(){
+    var unsub=fbAuth.onAuthStateChanged(function(u){setUser(u||null);});
+    return unsub;
+  },[]);
+
+  // ── Feature 1 & 4: Auto-detect location on first visit OR restore last search ──
+  useEffect(function(){
+    var last=null;
+    try{last=JSON.parse(localStorage.getItem("twc_last_location"));}catch(e){}
+    if(last&&last.name){
+      fetchWeatherByCoords(last.lat,last.lon,last.name);
+      return;
+    }
+    // First visit — try geolocation
+    if(navigator.geolocation){
+      navigator.geolocation.getCurrentPosition(
+        function(pos){
+          var lat=pos.coords.latitude,lon=pos.coords.longitude;
+          // Reverse geocode via Open-Meteo
+          fetch("https://nominatim.openstreetmap.org/reverse?lat="+lat+"&lon="+lon+"&format=json")
+            .then(function(r){return r.json();})
+            .then(function(j){
+              var name=(j.address&&(j.address.city||j.address.town||j.address.village||j.address.county))||"Your Location";
+              var country=j.address&&j.address.country_code?j.address.country_code.toUpperCase():"";
+              var fullName=name+(country?", "+country:"");
+              fetchWeatherByCoords(lat,lon,fullName);
+            })
+            .catch(function(){fetchWeatherByCoords(lat,lon,"Your Location");});
+        },
+        function(){fetchByName("London");} // denied or error
+      );
+    } else {
+      fetchByName("London");
+    }
+  },[]);
 
   // Close dropdown when clicking outside
   useEffect(function(){
@@ -1068,6 +1317,14 @@ function App(){
     }catch(e){setErr("Could not load forecast.");setSearching(false);}
   }
 
+  // Helper: fetch by raw coords + display name (for geolocation & saved locations)
+  async function fetchWeatherByCoords(lat,lon,name){
+    setSearching(true);setErr("");
+    try{
+      await fetchWeather({latitude:lat,longitude:lon,name:name,admin1:"",country_code:""});
+    }catch(e){setErr("Could not load forecast.");setSearching(false);}
+  }
+
   async function fetchWeather(place){
     setSearching(true);setErr("");
     try{
@@ -1098,7 +1355,11 @@ function App(){
       setFd(data);
       setLat(place.latitude);
       setLon(place.longitude);
-      setLn(place.name+(place.admin1?", "+place.admin1:"")+(place.country_code?", "+place.country_code:""));
+      var displayName=place.name+(place.admin1?", "+place.admin1:"")+(place.country_code?", "+place.country_code:"");
+      setLn(displayName);
+      // Feature 3 & 4: track current place ref and persist last location
+      currentPlace.current={name:displayName,lat:place.latitude,lon:place.longitude};
+      try{localStorage.setItem("twc_last_location",JSON.stringify({name:displayName,lat:place.latitude,lon:place.longitude}));}catch(e){}
       var first=new Date(days.time[0]+"T12:00:00"),last=new Date(days.time[days.time.length-1]+"T12:00:00");
       setDr(first.toLocaleDateString("en-GB",{day:"numeric",month:"short"})+" - "+last.toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"}));
     }catch(e){setErr("Could not load forecast. Check your connection and try again.");}
@@ -1108,6 +1369,18 @@ function App(){
   function doSearch(){if(iSt.trim())searchLocation(iSt.trim());}
   function onKey(e){if(e.key==="Enter")doSearch();}
 
+  function handleSignOut(){fbAuth.signOut();}
+
+  var alertCount=(function(){
+    var c=0;
+    if(iFd&&iFd.length>0){
+      iFd.slice(0,7).forEach(function(d){
+        if(d.temp>=30||d.rain>=60||d.windMph>=25||(d.humidity>=50&&d.temp>=28&&d.condition.includes("⛈"))||(d.uvMax!=null&&d.uvMax>=8))c++;
+      });
+    }
+    return c;
+  })();
+
   var u=iUnits;
   var pageSty={fontFamily:"Georgia,'Times New Roman',serif",background:"linear-gradient(160deg,#0a0a1a 0%,#0d1525 40%,#0a0f1e 100%)",minHeight:"100vh",color:"#e8dcc8",overflowX:"hidden"};
   var wrapSty={position:"relative",zIndex:1,maxWidth:960,margin:"0 auto",padding:"24px 16px 60px"};
@@ -1115,8 +1388,12 @@ function App(){
   return (
     <div style={pageSty}>
       {iShowS&&<SettingsPanel units={u} setUnits={setUnits} onClose={function(){setShowS(false);}}/>}
+      {iShowAuth&&<AuthModal onClose={function(){setShowAuth(false);}} onLogin={function(u){setUser(u);}}/>}
+      {iShowSaved&&<SavedLocationsPanel user={iUser} currentPlace={currentPlace.current} onClose={function(){setShowSaved(false);}} onSelect={function(loc){fetchWeatherByCoords(loc.lat,loc.lon,loc.name);}}/>}
+      {iShowAlerts&&<AlertsPanel forecastData={iFd} locationName={iLn} u={u} user={iUser} onClose={function(){setShowAlerts(false);}}/>}
       <div style={wrapSty}>
-        <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:20,flexWrap:"wrap"}}>
+        {/* ── Top bar row 1: nav + search ── */}
+        <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:8,flexWrap:"wrap"}}>
           <NavDropdown activePage={iAp} setActivePage={setAp}/>
           {/* FIX 2: search box with dropdown container */}
           <div ref={searchRef} style={{flex:1,minWidth:120,position:"relative"}}>
@@ -1126,10 +1403,30 @@ function App(){
             {iShowResults&&<LocationSearchDropdown results={iSearchResults} onSelect={fetchWeather} onClose={function(){setShowResults(false);}}/>}
           </div>
           <button onClick={doSearch} disabled={iSearching} style={{padding:"10px 14px",borderRadius:12,border:"none",background:iSearching?"#555":"#ff7700",color:"#fff",fontSize:13,fontWeight:"bold",cursor:iSearching?"wait":"pointer",whiteSpace:"nowrap",flexShrink:0}}>{iSearching?"Loading...":"Search"}</button>
-          <button onClick={function(){setShowS(true);}} style={{padding:"10px 12px",borderRadius:12,border:"1px solid rgba(255,255,255,0.15)",background:"rgba(255,255,255,0.05)",color:"#aaa",fontSize:13,cursor:"pointer",flexShrink:0}}>Settings</button>
+        </div>
+        {/* ── Top bar row 2: utility buttons ── */}
+        <div style={{display:"flex",gap:7,alignItems:"center",marginBottom:16,flexWrap:"wrap"}}>
+          <button onClick={function(){setShowSaved(true);}} style={{padding:"8px 12px",borderRadius:10,border:"1px solid rgba(255,255,255,0.13)",background:"rgba(255,255,255,0.04)",color:"#aaa",fontSize:12,cursor:"pointer",flexShrink:0}}>📍 Saved</button>
+          <button onClick={function(){setShowAlerts(true);}} style={{padding:"8px 12px",borderRadius:10,border:"1px solid "+(alertCount>0?"rgba(255,80,0,0.4)":"rgba(255,255,255,0.13)"),background:alertCount>0?"rgba(255,60,0,0.1)":"rgba(255,255,255,0.04)",color:alertCount>0?"#ff9944":"#aaa",fontSize:12,cursor:"pointer",flexShrink:0,position:"relative"}}>
+            ⚠️ Alerts{alertCount>0?<span style={{marginLeft:5,background:"#ff4400",color:"#fff",borderRadius:9,fontSize:10,padding:"1px 6px",fontFamily:"Georgia,serif"}}>{alertCount}</span>:""}
+          </button>
+          <button onClick={function(){setShowS(true);}} style={{padding:"8px 12px",borderRadius:10,border:"1px solid rgba(255,255,255,0.13)",background:"rgba(255,255,255,0.04)",color:"#aaa",fontSize:12,cursor:"pointer",flexShrink:0}}>⚙️ Settings</button>
+          <div style={{marginLeft:"auto",display:"flex",gap:7,alignItems:"center"}}>
+            {iUser
+              ?(
+                <div style={{display:"flex",gap:7,alignItems:"center"}}>
+                  <span style={{fontSize:11,color:"#4a9fd4",maxWidth:140,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>👤 {iUser.displayName||iUser.email}</span>
+                  <button onClick={handleSignOut} style={{padding:"7px 11px",borderRadius:10,border:"1px solid rgba(255,255,255,0.1)",background:"rgba(255,255,255,0.04)",color:"#777",fontSize:11,cursor:"pointer"}}>Sign out</button>
+                </div>
+              )
+              :(
+                <button onClick={function(){setShowAuth(true);}} style={{padding:"8px 14px",borderRadius:10,border:"1px solid rgba(255,119,0,0.35)",background:"rgba(255,119,0,0.1)",color:"#ffaa44",fontSize:12,cursor:"pointer",flexShrink:0}}>Sign in / Sign up</button>
+              )
+            }
+          </div>
         </div>
         {iErr&&<div style={{color:"#ff6666",fontSize:12,marginBottom:12,textAlign:"center"}}>{iErr}</div>}
-        {iFd.length===0&&!iErr&&<div style={{textAlign:"center",padding:"80px 20px",color:"#555"}}><div style={{fontSize:40,marginBottom:16}}>🌍</div><div style={{fontSize:14,color:"#666"}}>Loading forecast for London...</div></div>}
+        {iFd.length===0&&!iErr&&<div style={{textAlign:"center",padding:"80px 20px",color:"#555"}}><div style={{fontSize:40,marginBottom:16}}>🌍</div><div style={{fontSize:14,color:"#666"}}>Detecting your location…</div></div>}
         {iFd.length>0&&(
           <div>
             <div style={{textAlign:"center",marginBottom:24}}>
@@ -1148,7 +1445,7 @@ function App(){
             {iAp==="extremes"&&<WeatherExtremes forecastData={iFd} locationName={iLn} u={u}/>}
           </div>
         )}
-        <div style={{textAlign:"center",marginTop:24,fontSize:11,color:"#4a4a5a",lineHeight:1.7}}>Live forecast powered by Open-Meteo</div>
+        <div style={{textAlign:"center",marginTop:24,fontSize:11,color:"#4a4a5a",lineHeight:1.7}}>The Weather Centre — powered by Open-Meteo</div>
       </div>
     </div>
   );
