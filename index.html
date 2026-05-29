@@ -23,9 +23,6 @@
       messagingSenderId: "991077857189",
       appId: "1:991077857189:web:7648e7c59804c2aec31a4c"
     });
-    var fbAuth = firebase.auth();
-    var fbDb   = firebase.firestore();
-    var googleProvider = new firebase.auth.GoogleAuthProvider();
   </script>
   <style>
     *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
@@ -43,6 +40,11 @@
 var useState   = React.useState;
 var useEffect  = React.useEffect;
 var useRef     = React.useRef;
+
+// Firebase handles — declared here so Babel script can access them
+var fbAuth = firebase.auth();
+var fbDb   = firebase.firestore();
+var googleProvider = new firebase.auth.GoogleAuthProvider();
 
 // ── Nav items ────────────────────────────────────────────────────────────────
 var NAV_ITEMS = [
